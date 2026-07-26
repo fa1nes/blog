@@ -23,6 +23,18 @@
 </p>
 </details>
 
+## 三步用起来
+
+```bash
+git clone <这个仓库> my-blog && cd my-blog
+npm install && npm run setup
+npm run dev
+```
+
+`npm run setup` 是个交互式向导，会把站点信息、后台配置、示例内容一次处理好。细节见[快速开始](#快速开始)。
+
+在 GitHub 上把这个仓库设为 **Template repository**（Settings → General → 勾选 Template repository），之后每次开新博客都能直接「Use this template」建一个干净的仓库。
+
 ## 为什么是这一套
 
 - **首页 gzip 后约 7 KB，文章页约 9 KB**，一篇文章页的客户端 JavaScript 加起来只有 1 KB 左右
@@ -70,18 +82,36 @@
 需要 Node.js 22.12 或更高版本。
 
 ```bash
-npm install     # 安装依赖
-npm run dev     # 启动开发服务器，默认 http://localhost:4321
-npm run build   # 生产构建，产物在 dist/
-npm run preview # 本地预览构建产物
-npm run check   # TypeScript 类型检查
-
-npm run new "文章标题"   # 新建一篇文章
-npm run publish <文件>   # 通过 GitHub API 直接发布
-npm run og              # 重新生成社交分享图（改过站点标题后跑一次）
+git clone https://github.com/yourname/yourrepo.git my-blog
+cd my-blog
+npm install
+npm run setup     # 交互式填写站点信息
+npm run dev       # 打开 http://localhost:4321
 ```
 
-第一次运行前，建议先把 `src/site.config.ts` 里的站点信息改成你自己的。
+`npm run setup` 会问你几个问题（站点标题、作者、网址、GitHub 用户名等），然后自动完成：
+
+- 把 `src/site.config.ts` 里的占位信息换成你的
+- 更新 `public/admin/config.yml` 的后台仓库
+- 把社交链接里的 `yourname` 换成你的 GitHub 用户名
+- 可选：把示例文章、动态、友链换成占位内容
+- 重新生成社交分享图
+
+**所有改动都在 Git 里可回滚** —— 填错了执行 `git checkout .` 就能还原，也可以反复运行。不想用向导的话，直接手改 `src/site.config.ts` 也完全可以。
+
+### 全部命令
+
+```bash
+npm run dev       # 开发服务器
+npm run build     # 生产构建，产物在 dist/
+npm run preview   # 本地预览构建产物
+npm run check     # TypeScript 类型检查
+
+npm run setup     # 交互式初始化（第一次用，或想重新配置时）
+npm run new "标题" # 新建一篇文章
+npm run publish <文件>  # 通过 GitHub API 直接发布
+npm run og        # 重新生成分享图（改过站点标题后跑一次）
+```
 
 > **关于本地搜索**：搜索索引是在 `npm run build` 时生成的。所以在开发模式下，如果你从未构建过，搜索页会提示索引不存在。先跑一次 `npm run build` 即可，之后 `npm run dev` 也能正常搜索。
 
@@ -100,6 +130,7 @@ npm run og              # 重新生成社交分享图（改过站点标题后跑
 │   ├── _headers             # Cloudflare Pages 缓存策略
 │   └── .nojekyll            # 让 GitHub Pages 不要用 Jekyll 处理
 ├── scripts/
+│   ├── setup.mjs            # npm run setup，交互式初始化
 │   ├── generate-og.mjs      # 从配置生成分享图
 │   ├── new-post.mjs         # npm run new
 │   └── publish-post.mjs     # npm run publish
@@ -507,15 +538,22 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 
 ## 开始用之前的检查清单
 
-- [ ] 改 `src/site.config.ts`：`site.url`、站点标题、作者信息、社交链接
-- [ ] 跑一次 `npm run og` 重新生成分享图
+跑过 `npm run setup` 的话，前六项已经自动完成了：
+
+- [x] 站点标题、副标题、描述、作者信息 —— `npm run setup`
+- [x] `site.url` 改成最终域名 —— `npm run setup`
+- [x] 社交链接里的 GitHub 用户名 —— `npm run setup`
+- [x] 后台仓库 `public/admin/config.yml` 的 `repo` —— `npm run setup`
+- [x] 清掉示例文章、动态、友链 —— `npm run setup`
+- [x] 重新生成分享图 —— `npm run setup`
+
+剩下这些需要手动做：
+
 - [ ] 换掉 `public/favicon.svg` 和 `public/avatar.svg`
-- [ ] 删掉 `src/content/posts/` 下的示例文章、`src/content/notes/` 下的示例动态、`src/content/friends/` 下的示例友链
 - [ ] 改写 `src/content/pages/about.md`
-- [ ] 想用网页后台的话，改 `public/admin/config.yml` 里的 `repo`
 - [ ] 想开评论的话，按「开启评论」一节配置 Giscus
 - [ ] 把 `LICENSE` 里的版权人改成自己
-- [ ] 删掉 `docs/` 下的预览截图（那是这个仓库的说明图，不是你的内容）
+- [ ] 删掉 `docs/` 下的预览截图（那是模板说明图，不是你的内容）
 
 ## 致谢
 

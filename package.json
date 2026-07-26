@@ -14,6 +14,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "sync": "astro sync",
+    "setup": "node scripts/setup.mjs",
     "og": "node scripts/generate-og.mjs",
     "new": "node scripts/new-post.mjs",
     "publish": "node scripts/publish-post.mjs",
