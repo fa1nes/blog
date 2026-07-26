@@ -1,0 +1,39 @@
+# 构建产物
+dist/
+.output/
+.vercel/
+.netlify/
+
+# Astro 生成的类型与缓存
+.astro/
+
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 环境变量
+.env
+.env.production
+.env.local
+.env.*.local
+
+# 日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 本地调试产物
+.playwright-mcp/
+*.local
+
+# 本地工具目录，与站点内容无关
+.claude/
+.spec-workflow/

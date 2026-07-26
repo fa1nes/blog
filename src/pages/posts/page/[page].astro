@@ -1,0 +1,43 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { content } from '~/site.config';
+import { getListedPosts, type Post } from '~/lib/posts';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PostsIndex from '~/components/PostsIndex.astro';
+
+/**
+ * 第 2 页及以后。第 1 页由 /posts/ 提供，
+ * 避免出现 /posts/page/1/ 这样内容重复的地址。
+ */
+export const getStaticPaths = (async () => {
+  const posts = await getListedPosts();
+  const size = content.postsPerPage;
+  const totalPages = Math.ceil(posts.length / size);
+
+  return Array.from({ length: Math.max(0, totalPages - 1) }, (_, index) => {
+    const pageNumber = index + 2;
+    return {
+      params: { page: String(pageNumber) },
+      props: {
+        posts: posts.slice((pageNumber - 1) * size, pageNumber * size),
+        currentPage: pageNumber,
+        totalPages,
+        total: posts.length,
+      },
+    };
+  });
+}) satisfies GetStaticPaths;
+
+interface Props {
+  posts: Post[];
+  currentPage: number;
+  totalPages: number;
+  total: number;
+}
+
+const { posts, currentPage, totalPages, total } = Astro.props;
+---
+
+<BaseLayout title={`全部文章 · 第 ${currentPage} 页`} description="按时间浏览这个博客的所有文章。">
+  <PostsIndex posts={posts} currentPage={currentPage} totalPages={totalPages} total={total} />
+</BaseLayout>

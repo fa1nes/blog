@@ -1,0 +1,228 @@
+# yaml-language-server: $schema=https://unpkg.com/@sveltia/cms/schema/sveltia-cms.json
+#
+# Sveltia CMS 配置。字段与 src/content.config.ts 里的 schema 一一对应，
+# 改动 schema 时记得同步这里，否则后台存出来的文章会在构建时报错。
+#
+# 使用前必须把下面的 repo 改成你自己的 GitHub 仓库。
+
+backend:
+  name: github
+  repo: yourname/yourrepo
+  branch: main
+  # 提交信息模板，让仓库历史能看出是从后台改的
+  commit_messages:
+    create: '内容：新增 {{collection}}「{{slug}}」'
+    update: '内容：更新 {{collection}}「{{slug}}」'
+    delete: '内容：删除 {{collection}}「{{slug}}」'
+    uploadMedia: '内容：上传图片 {{path}}'
+    deleteMedia: '内容：删除图片 {{path}}'
+
+# CMS 上传的图片存到 public/uploads，引用路径是 /uploads/xxx。
+#
+# 为什么不直接存 src/assets：Astro 的图片优化要求用相对于文章的路径引用，
+# 而 Sveltia 的 public_folder 必须是以 / 开头的绝对路径，两者无法同时满足。
+# 所以这里分成两条路 —— 后台上传走 public/uploads（不压缩但随时可用），
+# 手写文章想要自动压缩就把图片放进 src/assets 并用相对路径引用。
+# 两种写法 cover 字段都支持，详见 README。
+media_folder: /public/uploads
+public_folder: /uploads
+
+# 后台默认使用简易工作流：保存即提交到 main 分支，随后 CI 自动部署
+publish_mode: simple
+
+collections:
+  - name: posts
+    label: 文章
+    label_singular: 文章
+    folder: /src/content/posts
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    # 文件名取「网址别名」字段，保证生成英文网址
+    slug: '{{fields.slug}}'
+    preview_path: 'posts/{{fields.slug}}'
+    summary: '{{title}}'
+    sortable_fields: [pubDate, title, category]
+    view_groups:
+      - label: 按分类
+        field: category
+    fields:
+      - label: 标题
+        name: title
+        widget: string
+
+      - label: 网址别名
+        name: slug
+        widget: string
+        hint: 只用小写英文、数字和连字符，它会成为文章网址，例如 hello-world
+        pattern: ['^[a-z0-9]+(?:-[a-z0-9]+)*$', '只能包含小写英文、数字和连字符']
+
+      - label: 摘要
+        name: description
+        widget: text
+        required: false
+        hint: 用于列表、搜索结果与分享卡片。留空会自动截取正文开头
+
+      - label: 发布日期
+        name: pubDate
+        widget: datetime
+        format: 'YYYY-MM-DD'
+        date_format: 'YYYY-MM-DD'
+        time_format: false
+        picker_utc: false
+
+      - label: 更新日期
+        name: updatedDate
+        widget: datetime
+        required: false
+        format: 'YYYY-MM-DD'
+        date_format: 'YYYY-MM-DD'
+        time_format: false
+        picker_utc: false
+
+      - label: 分类
+        name: category
+        widget: string
+        default: 技术
+        hint: 一篇文章只属于一个分类
+
+      - label: 标签
+        name: tags
+        widget: list
+        required: false
+        default: []
+        hint: 回车分隔，可以有多个
+
+      - label: 封面图
+        name: cover
+        widget: image
+        required: false
+        choose_url: false
+        hint: 会自动压缩并生成 WebP，列表页显示为缩略图
+
+      - label: 封面图说明
+        name: coverAlt
+        widget: string
+        required: false
+        hint: 供读屏软件使用，留空则用文章标题
+
+      - label: 草稿
+        name: draft
+        widget: boolean
+        default: false
+        hint: 勾选后本地可以预览，但不会出现在正式站点上
+
+      - label: 置顶
+        name: pinned
+        widget: boolean
+        default: false
+
+      - label: 显示目录
+        name: toc
+        widget: boolean
+        default: true
+
+      - label: 开启评论
+        name: comments
+        widget: boolean
+        default: true
+
+      - label: 正文
+        name: body
+        widget: markdown
+
+  - name: notes
+    label: 动态
+    label_singular: 动态
+    folder: /src/content/notes
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    # 动态没有标题，用日期时间做文件名
+    slug: '{{year}}-{{month}}-{{day}}-{{hour}}{{minute}}'
+    summary: '{{pubDate}} · {{body}}'
+    sortable_fields: [pubDate]
+    fields:
+      - label: 发布时间
+        name: pubDate
+        widget: datetime
+        format: 'YYYY-MM-DD HH:mm'
+        date_format: 'YYYY-MM-DD'
+        time_format: 'HH:mm'
+        picker_utc: false
+
+      - label: 心情 / 话题
+        name: mood
+        widget: string
+        required: false
+        hint: 显示在时间旁边，比如「随手记」「读到」
+
+      - label: 标签
+        name: tags
+        widget: list
+        required: false
+        default: []
+
+      - label: 草稿
+        name: draft
+        widget: boolean
+        default: false
+
+      - label: 内容
+        name: body
+        widget: markdown
+
+  - name: friends
+    label: 友情链接
+    label_singular: 友链
+    folder: /src/content/friends
+    create: true
+    extension: md
+    format: yaml-frontmatter
+    slug: '{{fields.name}}'
+    summary: '{{name}} — {{description}}'
+    sortable_fields: [order, name]
+    fields:
+      - { label: 站点名, name: name, widget: string }
+      - label: 站点地址
+        name: href
+        widget: string
+        pattern: ['^https?://.+', '需要以 http:// 或 https:// 开头']
+      - label: 一句话描述
+        name: description
+        widget: text
+        required: false
+      - label: 头像
+        name: avatar
+        widget: image
+        required: false
+        choose_url: true
+        hint: 留空时会用站点名首字生成占位头像
+      - label: 排序
+        name: order
+        widget: number
+        default: 0
+        value_type: int
+        hint: 数字小的排在前面
+      # 友链没有正文，但内容集合的文件需要有个 body 位置
+      - { label: 备注, name: body, widget: text, required: false }
+
+  - name: pages
+    label: 独立页面
+    label_singular: 页面
+    folder: /src/content/pages
+    create: false
+    extension: md
+    format: yaml-frontmatter
+    fields:
+      - { label: 标题, name: title, widget: string }
+      - { label: 摘要, name: description, widget: text, required: false }
+      - label: 更新日期
+        name: updatedDate
+        widget: datetime
+        required: false
+        format: 'YYYY-MM-DD'
+        date_format: 'YYYY-MM-DD'
+        time_format: false
+        picker_utc: false
+      - { label: 正文, name: body, widget: markdown }

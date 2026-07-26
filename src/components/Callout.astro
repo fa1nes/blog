@@ -1,0 +1,17 @@
+---
+// 供 MDX 使用：<Callout type="tip" title="小提示">内容</Callout>
+interface Props {
+  type?: 'note' | 'tip' | 'warning';
+  title?: string;
+}
+
+const { type = 'note', title } = Astro.props;
+const defaultTitles = { note: '说明', tip: '建议', warning: '注意' } as const;
+---
+
+<aside class="callout" data-type={type}>
+  <p class="callout-title">{title ?? defaultTitles[type]}</p>
+  <div class="callout-body">
+    <slot />
+  </div>
+</aside>

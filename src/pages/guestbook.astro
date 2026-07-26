@@ -1,0 +1,30 @@
+---
+import { comments as commentsConfig } from '~/site.config';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+import Comments from '~/components/Comments.astro';
+---
+
+<BaseLayout title="留言板" description="有什么想说的，都可以留在这里。">
+  <div class="mx-auto max-w-page px-5 sm:px-8 py-10 sm:py-12">
+    <PageHeader title="留言板" description="有什么想说的，都可以留在这里。" />
+
+    <p class="mt-6 text-[0.95rem] leading-relaxed text-ink-soft">
+      读后感、纠错、友链申请、或者只是打个招呼都可以。留言会保存在 GitHub Discussions 里，需要用
+      GitHub 账号登录。
+    </p>
+
+    {
+      commentsConfig.enabled ? (
+        <Comments />
+      ) : (
+        <p class="mt-8 rounded-xl bg-paper-sunken px-4 py-3 text-[0.9rem] leading-relaxed text-ink-soft">
+          评论功能尚未开启。在{' '}
+          <code class="rounded bg-paper px-1.5 py-0.5 text-sm">src/site.config.ts</code> 里把{' '}
+          <code class="rounded bg-paper px-1.5 py-0.5 text-sm">comments.enabled</code> 改成 true
+          并填好 Giscus 配置即可，具体步骤见 README。
+        </p>
+      )
+    }
+  </div>
+</BaseLayout>

@@ -1,0 +1,19 @@
+---
+import { href } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="页面不存在" description="没有找到这个页面。" noindex>
+  <div class="mx-auto flex max-w-[36rem] flex-col items-center px-5 py-24 text-center sm:py-32">
+    <p class="text-[4.5rem] font-bold leading-none text-accent/25 tabular-nums">404</p>
+    <h1 class="mt-4 text-2xl font-bold text-ink-strong">这里什么都没有</h1>
+    <p class="mt-3 text-[0.95rem] text-ink-soft">
+      你访问的页面可能已经被移动、重命名，或者从来就不存在。
+    </p>
+    <div class="mt-8 flex flex-wrap justify-center gap-2.5">
+      <a href={href('/')} class="btn-primary">返回首页</a>
+      <a href={href('/posts/')} class="btn-ghost">浏览文章</a>
+      <a href={href('/search/')} class="btn-ghost">搜索</a>
+    </div>
+  </div>
+</BaseLayout>

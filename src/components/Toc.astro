@@ -1,0 +1,84 @@
+---
+import type { MarkdownHeading } from 'astro';
+import { content } from '~/site.config';
+import { tocHeadings } from '~/lib/toc';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+const min = content.tocDepth.min;
+const items = tocHeadings(headings);
+---
+
+{
+  items.length > 0 && (
+    <nav class="toc" aria-label="文章目录">
+      <ul class="flex flex-col gap-0.5 border-l border-line">
+        {items.map((heading) => (
+          <li>
+            <a
+              href={`#${heading.slug}`}
+              data-toc-link={heading.slug}
+              class="-ml-px block border-l border-transparent py-1 pr-2 text-[0.82rem] leading-snug text-ink-faint transition-colors hover:text-accent data-[active]:border-accent data-[active]:text-accent"
+              style={`padding-left: ${0.75 + (heading.depth - min) * 0.7}rem`}
+            >
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<script>
+  const links = document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]');
+  if (links.length > 0) {
+    const bySlug = new Map<string, HTMLAnchorElement[]>();
+    for (const link of links) {
+      const slug = link.dataset.tocLink!;
+      bySlug.set(slug, [...(bySlug.get(slug) ?? []), link]);
+    }
+
+    const headings = [
+      ...document.querySelectorAll<HTMLElement>('.prose :is(h2, h3, h4)[id]'),
+    ].filter((heading) => bySlug.has(heading.id));
+
+    let current = '';
+    const setActive = (slug: string) => {
+      if (slug === current) return;
+      bySlug.get(current)?.forEach((link) => delete link.dataset.active);
+      bySlug.get(slug)?.forEach((link) => (link.dataset.active = 'true'));
+      current = slug;
+    };
+
+    const visible = new Set<string>();
+    const update = () => {
+      // 优先选择当前进入阅读区的标题，都不在时回退到最后一个已滚过的标题
+      let active = headings.find((heading) => visible.has(heading.id));
+      if (!active) {
+        for (const heading of headings) {
+          if (heading.getBoundingClientRect().top < 120) active = heading;
+          else break;
+        }
+      }
+      setActive(active?.id ?? headings[0]?.id ?? '');
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) visible.add(entry.target.id);
+          else visible.delete(entry.target.id);
+        }
+        update();
+      },
+      { rootMargin: '-80px 0px -68% 0px' },
+    );
+
+    headings.forEach((heading) => observer.observe(heading));
+    update();
+  }
+</script>

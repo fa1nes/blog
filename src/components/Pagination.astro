@@ -1,0 +1,85 @@
+---
+import { href } from '~/lib/url';
+import Icon from '~/components/Icon.astro';
+
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  /** 列表根路径，例如 '/posts/'，第二页起为 '/posts/page/2/' */
+  basePath: string;
+}
+
+const { currentPage, totalPages, basePath } = Astro.props;
+
+/** 生成页码序列，页数较多时用省略号收拢中间部分 */
+function buildPages(current: number, total: number): (number | '…')[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const wanted = new Set([1, total, current, current - 1, current + 1]);
+  const sorted = [...wanted].filter((n) => n >= 1 && n <= total).sort((a, b) => a - b);
+  const result: (number | '…')[] = [];
+  let previous = 0;
+  for (const n of sorted) {
+    if (previous && n - previous > 1) result.push('…');
+    result.push(n);
+    previous = n;
+  }
+  return result;
+}
+
+function pageHref(n: number): string {
+  const root = basePath.replace(/\/+$/, '');
+  return n <= 1 ? href(`${root}/`) : href(`${root}/page/${n}/`);
+}
+
+const items = buildPages(currentPage, totalPages);
+const boxClass =
+  'grid h-9 min-w-9 place-items-center rounded-full px-3 text-sm transition-colors tabular-nums';
+const linkClass = `${boxClass} bg-paper-sunken text-ink-soft hover:bg-accent-soft hover:text-accent`;
+const mutedClass = `${boxClass} text-ink-faint opacity-40`;
+---
+
+{
+  totalPages > 1 && (
+    <nav class="mt-12 flex items-center justify-between gap-3 border-t border-line pt-6" aria-label="分页导航">
+      {currentPage > 1 ? (
+        <a href={pageHref(currentPage - 1)} class={linkClass} rel="prev" aria-label="上一页">
+          <Icon name="arrowLeft" size={16} />
+        </a>
+      ) : (
+        <span class={mutedClass} aria-hidden="true">
+          <Icon name="arrowLeft" size={16} />
+        </span>
+      )}
+
+      <div class="hidden items-center gap-1.5 sm:flex">
+        {items.map((item) =>
+          item === '…' ? (
+            <span class="px-1 text-sm text-ink-faint">…</span>
+          ) : item === currentPage ? (
+            <span class={`${boxClass} bg-accent font-medium text-white`} aria-current="page">
+              {item}
+            </span>
+          ) : (
+            <a href={pageHref(item)} class={linkClass}>
+              {item}
+            </a>
+          ),
+        )}
+      </div>
+
+      <span class="meta-text sm:hidden">
+        第 {currentPage} / {totalPages} 页
+      </span>
+
+      {currentPage < totalPages ? (
+        <a href={pageHref(currentPage + 1)} class={linkClass} rel="next" aria-label="下一页">
+          <Icon name="arrowRight" size={16} />
+        </a>
+      ) : (
+        <span class={mutedClass} aria-hidden="true">
+          <Icon name="arrowRight" size={16} />
+        </span>
+      )}
+    </nav>
+  )
+}

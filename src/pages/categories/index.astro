@@ -1,0 +1,43 @@
+---
+import { collectCategories, getListedPosts } from '~/lib/posts';
+import { categoryPath } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+import Icon from '~/components/Icon.astro';
+
+const posts = await getListedPosts();
+const categories = collectCategories(posts);
+---
+
+<BaseLayout title="分类" description="按主题浏览这个博客的文章分类。">
+  <div class="mx-auto max-w-page px-5 sm:px-8 py-10 sm:py-12">
+    <PageHeader
+      title="分类"
+      description="每篇文章归属一个分类，用来区分内容的大方向。"
+      meta={`共 ${categories.length} 个`}
+    />
+
+    {
+      categories.length > 0 ? (
+        <div class="mt-7 grid gap-3 sm:grid-cols-2">
+          {categories.map((category) => (
+            <a
+              href={categoryPath(category.name)}
+              class="group flex items-center justify-between gap-3 rounded-xl border border-line px-4 py-3.5 transition-colors hover:border-accent/50 hover:bg-paper-raised"
+            >
+              <span class="flex min-w-0 items-center gap-2.5">
+                <Icon name="folder" size={16} class="shrink-0 text-ink-faint" />
+                <span class="truncate text-[0.95rem] transition-colors group-hover:text-accent">
+                  {category.name}
+                </span>
+              </span>
+              <span class="shrink-0 meta-text">{category.count} 篇</span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p class="mt-7 text-ink-soft">还没有任何分类。</p>
+      )
+    }
+  </div>
+</BaseLayout>

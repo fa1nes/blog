@@ -1,0 +1,79 @@
+---
+import { getCollection } from 'astro:content';
+import { friendsNote } from '~/site.config';
+import { href } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+import Icon from '~/components/Icon.astro';
+
+const friends = (await getCollection('friends')).sort(
+  (a, b) => a.data.order - b.data.order || a.data.name.localeCompare(b.data.name, 'zh-CN'),
+);
+
+const isExternal = (src?: string) => Boolean(src && /^https?:\/\//i.test(src));
+---
+
+<BaseLayout title="友链" description="一些值得一看的站点。">
+  <div class="mx-auto max-w-page px-5 py-10 sm:px-8 sm:py-12">
+    <PageHeader title="友链" description="一些值得一看的站点。" meta={`共 ${friends.length} 个`} />
+
+    {
+      friendsNote && (
+        <p class="mt-6 rounded-xl bg-paper-sunken px-4 py-3 text-[0.9rem] leading-relaxed text-ink-soft">
+          {friendsNote}
+        </p>
+      )
+    }
+
+    {
+      friends.length > 0 ? (
+        <div class="mt-7 grid gap-3 sm:grid-cols-2">
+          {friends.map(({ data: friend }) => (
+            <a
+              href={friend.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group flex items-center gap-3.5 rounded-xl border border-line p-4 transition-colors hover:border-accent/50 hover:bg-paper-raised"
+            >
+              {friend.avatar ? (
+                <img
+                  src={isExternal(friend.avatar) ? friend.avatar : href(friend.avatar)}
+                  alt=""
+                  width="40"
+                  height="40"
+                  loading="lazy"
+                  class="size-10 shrink-0 rounded-full border border-line object-cover"
+                />
+              ) : (
+                <span
+                  class="grid size-10 shrink-0 place-items-center rounded-full bg-accent-soft text-[0.95rem] font-bold text-accent"
+                  aria-hidden="true"
+                >
+                  {friend.name.trim().slice(0, 1)}
+                </span>
+              )}
+
+              <span class="min-w-0 flex-1">
+                <span class="flex items-center gap-1 font-medium text-ink-strong transition-colors group-hover:text-accent">
+                  <span class="truncate">{friend.name}</span>
+                  <Icon name="link" size={13} class="shrink-0 text-ink-faint" />
+                </span>
+                {friend.description && (
+                  <span class="mt-0.5 block truncate text-[0.85rem] text-ink-soft">
+                    {friend.description}
+                  </span>
+                )}
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p class="mt-7 text-ink-soft">
+          还没有友链。在{' '}
+          <code class="rounded bg-paper-sunken px-1.5 py-0.5 text-sm">src/content/friends/</code>{' '}
+          下新建 Markdown 文件，或者用网页后台添加。
+        </p>
+      )
+    }
+  </div>
+</BaseLayout>

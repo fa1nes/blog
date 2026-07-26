@@ -1,0 +1,37 @@
+---
+import { href } from '~/lib/url';
+import Icon from '~/components/Icon.astro';
+
+// 回到顶部按钮用 IntersectionObserver 观察顶部哨兵，比监听 scroll 省很多
+---
+
+<span id="dock-sentinel" aria-hidden="true" class="pointer-events-none absolute top-0 h-px w-px"
+></span>
+
+<div class="float-dock print:hidden">
+  <a href={href('/search/')} aria-label="搜索" title="搜索">
+    <Icon name="search" size={17} />
+  </a>
+  <button type="button" id="back-to-top" data-visible="false" aria-label="回到顶部" title="回到顶部">
+    <Icon name="arrowUp" size={17} />
+  </button>
+</div>
+
+<script>
+  const button = document.getElementById('back-to-top');
+  const sentinel = document.getElementById('dock-sentinel');
+
+  if (button && sentinel) {
+    button.addEventListener('click', () => {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+    });
+
+    new IntersectionObserver(
+      ([entry]) => {
+        button.dataset.visible = String(!entry.isIntersecting);
+      },
+      { rootMargin: '300px 0px 0px 0px' },
+    ).observe(sentinel);
+  }
+</script>

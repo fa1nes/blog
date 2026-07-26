@@ -1,0 +1,29 @@
+---
+import type { Post } from '~/lib/posts';
+import PageHeader from '~/components/PageHeader.astro';
+import PostCard from '~/components/PostCard.astro';
+import Pagination from '~/components/Pagination.astro';
+
+interface Props {
+  posts: Post[];
+  currentPage: number;
+  totalPages: number;
+  total: number;
+}
+
+const { posts, currentPage, totalPages, total } = Astro.props;
+---
+
+<div class="mx-auto max-w-page px-5 sm:px-8 py-10 sm:py-12">
+  <PageHeader
+    title="全部文章"
+    description="按时间倒序排列，置顶的文章会出现在最前面。"
+    meta={`共 ${total} 篇`}
+  />
+
+  <div class="mt-2">
+    {posts.map((post) => <PostCard post={post} />)}
+  </div>
+
+  <Pagination currentPage={currentPage} totalPages={totalPages} basePath="/posts/" />
+</div>

@@ -1,0 +1,91 @@
+---
+import { site, nav, features } from '~/site.config';
+import { href, isActive } from '~/lib/url';
+import Icon from '~/components/Icon.astro';
+import ThemeToggle from '~/components/ThemeToggle.astro';
+
+const pathname = Astro.url.pathname;
+const monogram = site.shortTitle.trim().slice(0, 1);
+---
+
+<header class="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md">
+  <div class="mx-auto flex h-14 max-w-page items-center gap-4 px-5 sm:px-8">
+    <a href={href('/')} class="group flex shrink-0 items-center gap-2">
+      <span
+        class="grid size-7 place-items-center rounded-full bg-accent-vivid text-[0.82rem] font-bold text-white transition-transform group-hover:scale-105"
+        aria-hidden="true"
+      >
+        {monogram}
+      </span>
+      <span class="text-[1.05rem] font-bold tracking-tight text-accent">
+        {site.shortTitle}
+      </span>
+    </a>
+
+    <nav class="nav-slash ml-auto hidden items-center lg:flex" aria-label="主导航">
+      {
+        nav.map((item) => (
+          <a
+            href={href(item.href)}
+            class="text-[0.9rem] font-medium text-ink-soft transition-colors hover:text-accent aria-[current=page]:text-accent"
+            aria-current={isActive(pathname, item.href) ? 'page' : undefined}
+          >
+            {item.label}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="ml-auto flex items-center gap-0.5 lg:ml-3">
+      {
+        features.search && (
+          <a
+            href={href('/search/')}
+            class="btn-icon"
+            aria-label="搜索"
+            title="搜索"
+          >
+            <Icon name="search" size={18} />
+          </a>
+        )
+      }
+      {features.themeToggle && <ThemeToggle />}
+
+      <details class="group relative lg:hidden" data-mobile-nav>
+        <summary
+          class="grid size-9 cursor-pointer list-none place-items-center rounded-full text-ink-soft transition-colors hover:bg-paper-sunken hover:text-accent [&::-webkit-details-marker]:hidden"
+          aria-label="展开导航菜单"
+        >
+          <Icon name="menu" size={18} class="block group-open:hidden" />
+          <Icon name="close" size={18} class="hidden group-open:block" />
+        </summary>
+        <nav
+          class="absolute right-0 top-11 z-50 w-40 rounded-xl border border-line bg-paper p-1.5 shadow-lg"
+          aria-label="移动端导航"
+        >
+          {
+            nav.map((item) => (
+              <a
+                href={href(item.href)}
+                class="block rounded-lg px-3 py-2 text-[0.9rem] transition-colors hover:bg-paper-sunken aria-[current=page]:font-medium aria-[current=page]:text-accent"
+                aria-current={isActive(pathname, item.href) ? 'page' : undefined}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+        </nav>
+      </details>
+    </div>
+  </div>
+</header>
+
+<script>
+  // 点击菜单外部时收起移动端导航
+  document.addEventListener('click', (event) => {
+    const menu = document.querySelector<HTMLDetailsElement>('details[data-mobile-nav]');
+    if (menu?.open && !menu.contains(event.target as Node)) {
+      menu.open = false;
+    }
+  });
+</script>

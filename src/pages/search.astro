@@ -1,0 +1,259 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+import Icon from '~/components/Icon.astro';
+import { BASE, tagPath } from '~/lib/url';
+import { getListedPosts } from '~/lib/posts';
+import { getNotes } from '~/lib/notes';
+import { collectAllTags } from '~/lib/tags';
+
+const pagefindBase = `${BASE}pagefind/`;
+
+// 还没输入关键词时给点浏览入口，比空着一片好。
+// 用 collectAllTags 而不是只看文章，否则会给出指向 404 的标签
+const topTags = collectAllTags(await getListedPosts(), await getNotes()).slice(0, 12);
+---
+
+<BaseLayout title="搜索" description="在本站的全部文章中搜索关键词。" noindex>
+  <div class="mx-auto max-w-page px-5 sm:px-8 py-10 sm:py-12">
+    <PageHeader title="搜索" description="索引在构建时生成，输入关键词即可实时匹配全文。" />
+
+    <form class="mt-7" role="search" data-search-form>
+      <div class="relative">
+        <Icon
+          name="search"
+          size={17}
+          class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint"
+        />
+        <input
+          id="search-input"
+          type="search"
+          name="q"
+          placeholder="搜索文章标题与正文…"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          class="w-full rounded-xl border border-line bg-paper py-2.5 pl-11 pr-4 text-[0.95rem] text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-accent"
+        />
+      </div>
+    </form>
+
+    <p id="search-status" class="mt-5 meta-text" role="status" aria-live="polite"></p>
+    <div id="search-results" class="mt-1"></div>
+
+    {
+      topTags.length > 0 && (
+        <div id="search-suggestions" class="mt-8">
+          <p class="text-[0.85rem] font-medium text-ink-soft">或者按标签浏览</p>
+          <div class="mt-3 flex flex-wrap gap-2">
+            {topTags.map((tag) => (
+              <a href={tagPath(tag.name)} class="tag-chip tag-chip-lg">
+                #{tag.name}
+              </a>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    <noscript>
+      <p class="mt-5 text-[0.95rem] text-ink-soft">
+        搜索功能需要 JavaScript。你也可以通过<a
+          href="../archive/"
+          class="link-underline text-accent">归档</a
+        >或<a href="../tags/" class="link-underline text-accent">标签</a>浏览全部文章。
+      </p>
+    </noscript>
+  </div>
+
+  {/* 结果条目的结构在构建时渲染，脚本只负责克隆和填字，不拼 HTML 字符串 */}
+  <template id="tpl-search-result">
+    <article class="border-b border-line py-5 last:border-0">
+      <a data-result-link class="group block">
+        <h2
+          data-result-title
+          class="font-bold text-[1.15rem] leading-snug text-ink-strong transition-colors group-hover:text-accent"
+        >
+        </h2>
+        <p data-result-excerpt class="mt-1.5 text-[0.92rem] leading-relaxed text-ink-soft"></p>
+        <p data-result-meta class="mt-2 meta-text"></p>
+      </a>
+    </article>
+  </template>
+</BaseLayout>
+
+{/*
+  搜索索引是构建产物，不属于打包图谱。
+  如果在打包脚本里 import 它，Vite 会套上自己的预加载逻辑并改写路径，
+  导致运行时请求到错误地址。这段内联脚本会被原样输出，
+  其中的 import() 保持浏览器原生语义。
+*/}
+<script is:inline define:vars={{ pagefindBase, siteBase: BASE }}>
+  // @ts-nocheck —— pagefindBase 与 siteBase 由 define:vars 在运行时注入
+  window.__loadPagefind = async () => {
+    const pagefind = await import(`${pagefindBase}pagefind.js`);
+    // basePath 指向索引文件，baseUrl 用于拼接结果链接，
+    // 部署到子路径时两者缺一不可
+    await pagefind.options({ basePath: pagefindBase, baseUrl: siteBase });
+    return pagefind;
+  };
+</script>
+
+<script>
+  interface PagefindResultData {
+    url: string;
+    excerpt: string;
+    meta: Record<string, string | undefined>;
+    filters?: Record<string, string[] | undefined>;
+  }
+
+  interface PagefindApi {
+    options(options: Record<string, unknown>): Promise<void>;
+    search(term: string): Promise<{ results: { data(): Promise<PagefindResultData> }[] }>;
+  }
+
+  const input = document.getElementById('search-input') as HTMLInputElement | null;
+  const status = document.getElementById('search-status');
+  const container = document.getElementById('search-results');
+  const suggestions = document.getElementById('search-suggestions');
+  const template = document.getElementById('tpl-search-result') as HTMLTemplateElement | null;
+  const form = document.querySelector<HTMLFormElement>('[data-search-form]');
+
+  if (input && status && container && template) {
+    const MAX_RESULTS = 20;
+    let api: PagefindApi | null = null;
+    let loadFailed = false;
+    let token = 0;
+
+    form?.addEventListener('submit', (event) => event.preventDefault());
+
+    async function getApi(): Promise<PagefindApi | null> {
+      if (api || loadFailed) return api;
+      const loader = (window as unknown as { __loadPagefind?: () => Promise<PagefindApi> })
+        .__loadPagefind;
+      try {
+        if (!loader) throw new Error('pagefind 加载器未注入');
+        api = await loader();
+      } catch (error) {
+        loadFailed = true;
+        // 索引缺失是可预期的情况，但仍要留下线索便于排查
+        console.error('[search] 无法加载搜索索引：', error);
+      }
+      return api;
+    }
+
+    /** Pagefind 的摘要里只含 <mark> 标签，这里按标签切分后用 DOM 拼装 */
+    function fillExcerpt(target: HTMLElement, excerpt: string) {
+      target.textContent = '';
+      for (const part of excerpt.split(/(<mark>[\s\S]*?<\/mark>)/g)) {
+        if (!part) continue;
+        if (part.startsWith('<mark>')) {
+          const mark = document.createElement('mark');
+          mark.className = 'rounded bg-accent-soft px-0.5 text-accent';
+          mark.textContent = decodeEntities(part.slice(6, -7));
+          target.appendChild(mark);
+        } else {
+          target.appendChild(document.createTextNode(decodeEntities(part)));
+        }
+      }
+    }
+
+    function decodeEntities(text: string): string {
+      return text
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#(\d+);/g, (_, code: string) => String.fromCharCode(Number(code)))
+        .replace(/&amp;/g, '&');
+    }
+
+    function renderResults(items: PagefindResultData[]) {
+      container!.textContent = '';
+      const fragment = document.createDocumentFragment();
+
+      for (const item of items) {
+        const node = template!.content.firstElementChild!.cloneNode(true) as HTMLElement;
+        const link = node.querySelector<HTMLAnchorElement>('[data-result-link]')!;
+        const title = node.querySelector<HTMLElement>('[data-result-title]')!;
+        const excerpt = node.querySelector<HTMLElement>('[data-result-excerpt]')!;
+        const meta = node.querySelector<HTMLElement>('[data-result-meta]')!;
+
+        link.href = item.url;
+        title.textContent = item.meta.title ?? '未命名文档';
+        fillExcerpt(excerpt, item.excerpt ?? '');
+        // 分类是以 filter 的形式索引的，不在 meta 里
+        const category = item.filters?.['分类']?.[0];
+        meta.textContent = [item.meta.date, category].filter(Boolean).join(' · ');
+
+        fragment.appendChild(node);
+      }
+
+      container!.appendChild(fragment);
+    }
+
+    async function run(term: string) {
+      const current = ++token;
+      const query = term.trim();
+
+      if (!query) {
+        container!.textContent = '';
+        status!.textContent = '';
+        if (suggestions) suggestions.hidden = false;
+        return;
+      }
+
+      if (suggestions) suggestions.hidden = true;
+      status!.textContent = '搜索中…';
+      const pagefind = await getApi();
+
+      if (!pagefind) {
+        container!.textContent = '';
+        status!.textContent =
+          '搜索索引尚未生成。索引在 npm run build 时创建，本地开发请先执行一次构建。';
+        return;
+      }
+
+      const search = await pagefind.search(query);
+      if (current !== token) return;
+
+      const items = await Promise.all(
+        search.results.slice(0, MAX_RESULTS).map((result) => result.data()),
+      );
+      if (current !== token) return;
+
+      renderResults(items);
+      status!.textContent =
+        search.results.length === 0
+          ? `没有找到与「${query}」相关的内容。`
+          : `找到 ${search.results.length} 条结果${
+              search.results.length > MAX_RESULTS ? `，显示前 ${MAX_RESULTS} 条` : ''
+            }。`;
+
+      const url = new URL(window.location.href);
+      url.searchParams.set('q', query);
+      window.history.replaceState(null, '', url);
+    }
+
+    let timer: ReturnType<typeof setTimeout>;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => run(input.value), 180);
+    });
+
+    // 支持 /search/?q=关键词 这样的分享链接
+    const initial = new URLSearchParams(window.location.search).get('q');
+    if (initial) {
+      input.value = initial;
+      run(initial);
+    }
+    input.focus();
+
+    // 按下 / 快速聚焦搜索框
+    document.addEventListener('keydown', (event) => {
+      if (event.key === '/' && document.activeElement !== input) {
+        event.preventDefault();
+        input.focus();
+      }
+    });
+  }
+</script>

@@ -1,0 +1,50 @@
+---
+import Icon from '~/components/Icon.astro';
+
+// 按钮结构由构建时渲染进 <template>，脚本只克隆与绑定，避免在 JS 里拼 HTML
+---
+
+<template id="tpl-copy-button">
+  <button type="button" class="copy-button" aria-label="复制代码" title="复制代码">
+    <Icon name="copy" size={15} class="icon-copy" />
+    <Icon name="check" size={15} class="icon-copied" />
+  </button>
+</template>
+
+<script>
+  const template = document.getElementById('tpl-copy-button') as HTMLTemplateElement | null;
+
+  if (template) {
+    for (const pre of document.querySelectorAll<HTMLPreElement>('.prose pre.astro-code')) {
+      const code = pre.querySelector('code');
+      if (!code || pre.parentElement?.classList.contains('code-block')) continue;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block';
+      // Shiki 把 data-language 写在 pre 上，挪到外层才能用 CSS 显示语言标签
+      if (pre.dataset.language) wrapper.dataset.language = pre.dataset.language;
+      pre.replaceWith(wrapper);
+      wrapper.appendChild(pre);
+
+      const button = template.content.firstElementChild?.cloneNode(true) as HTMLButtonElement;
+      let timer: ReturnType<typeof setTimeout>;
+
+      button.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(code.textContent ?? '');
+          button.dataset.copied = 'true';
+          button.setAttribute('aria-label', '已复制');
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            delete button.dataset.copied;
+            button.setAttribute('aria-label', '复制代码');
+          }, 1800);
+        } catch {
+          button.setAttribute('aria-label', '复制失败，请手动选择');
+        }
+      });
+
+      wrapper.appendChild(button);
+    }
+  }
+</script>

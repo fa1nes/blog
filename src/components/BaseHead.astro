@@ -1,0 +1,113 @@
+---
+import { site, author, seo } from '~/site.config';
+import { href } from '~/lib/url';
+import '~/styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** 分享图，可以是站内路径或完整外链 */
+  image?: string;
+  /** article 用于文章页，website 用于其它页面 */
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  tags?: string[];
+  /** 不希望被搜索引擎收录时置为 true */
+  noindex?: boolean;
+}
+
+const {
+  title,
+  description = site.description,
+  image = seo.ogImage,
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  tags = [],
+  noindex = false,
+} = Astro.props;
+
+const isHome = Astro.url.pathname === href('/');
+const fullTitle = isHome || title === site.title ? site.title : `${title} - ${site.title}`;
+
+const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url).toString();
+const ogImage = new URL(href(image), Astro.site ?? site.url).toString();
+const rssUrl = href('/rss.xml');
+
+const structuredData =
+  type === 'article'
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: title,
+        description,
+        image: ogImage,
+        datePublished: publishedTime?.toISOString(),
+        dateModified: (modifiedTime ?? publishedTime)?.toISOString(),
+        keywords: tags.join(', ') || undefined,
+        inLanguage: site.lang,
+        mainEntityOfPage: { '@type': 'WebPage', '@id': canonical },
+        author: { '@type': 'Person', name: author.name, url: author.url || undefined },
+        publisher: { '@type': 'Person', name: author.name },
+      }
+    : {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: site.title,
+        description: site.description,
+        url: new URL(href('/'), Astro.site ?? site.url).toString(),
+        inLanguage: site.lang,
+        author: { '@type': 'Person', name: author.name, url: author.url || undefined },
+      };
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="generator" content={Astro.generator} />
+
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+<link rel="canonical" href={canonical} />
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+
+<link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
+<link rel="alternate" type="application/rss+xml" title={`${site.title} 的 RSS`} href={rssUrl} />
+<link rel="sitemap" href={href('/sitemap-index.xml')} />
+
+<meta name="theme-color" content="#fdfcfa" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#14181e" media="(prefers-color-scheme: dark)" />
+
+<meta property="og:type" content={type} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:image" content={ogImage} />
+<meta property="og:site_name" content={site.title} />
+<meta property="og:locale" content={site.locale} />
+{publishedTime && <meta property="article:published_time" content={publishedTime.toISOString()} />}
+{modifiedTime && <meta property="article:modified_time" content={modifiedTime.toISOString()} />}
+{type === 'article' && tags.map((tag) => <meta property="article:tag" content={tag} />)}
+
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content={fullTitle} />
+<meta name="twitter:description" content={description} />
+<meta name="twitter:image" content={ogImage} />
+{seo.twitterSite && <meta name="twitter:site" content={seo.twitterSite} />}
+
+<script type="application/ld+json" set:html={JSON.stringify(structuredData)} is:inline />
+
+{/* 在首屏绘制前写入主题，避免深色模式闪白 */}
+<script is:inline>
+  (() => {
+    try {
+      const stored = localStorage.getItem('theme');
+      const dark = stored
+        ? stored === 'dark'
+        : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.classList.toggle('dark', dark);
+    } catch {
+      /* 隐私模式下 localStorage 不可用，退回浅色 */
+    }
+  })();
+</script>

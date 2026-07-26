@@ -1,0 +1,76 @@
+---
+import { site, author, social, footer, nav } from '~/site.config';
+import { href } from '~/lib/url';
+import Icon from '~/components/Icon.astro';
+
+const currentYear = new Date().getFullYear();
+const years =
+  footer.startYear && footer.startYear < currentYear
+    ? `${footer.startYear} - ${currentYear}`
+    : `${currentYear}`;
+const owner = footer.copyright || author.name;
+---
+
+<footer class="mt-20 border-t border-line">
+  <div class="mx-auto max-w-page px-5 py-9 sm:px-8">
+    <nav class="flex flex-wrap gap-x-5 gap-y-2 pb-6 text-[0.88rem]" aria-label="页脚导航">
+      {
+        nav.map((item) => (
+          <a href={href(item.href)} class="text-ink-soft transition-colors hover:text-accent">
+            {item.label}
+          </a>
+        ))
+      }
+      <a href={href('/tags/')} class="text-ink-soft transition-colors hover:text-accent">标签</a>
+      <a href={href('/search/')} class="text-ink-soft transition-colors hover:text-accent">搜索</a>
+    </nav>
+
+    <div
+      class="flex flex-col gap-5 border-t border-line pt-6 sm:flex-row sm:items-start sm:justify-between"
+    >
+      <div class="flex flex-col gap-1.5 meta-text">
+        <p>© {years} {owner}</p>
+        {footer.note && <p>{footer.note}</p>}
+        {
+          footer.icp && (
+            <a
+              href={footer.icpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-fit transition-colors hover:text-accent"
+            >
+              {footer.icp}
+            </a>
+          )
+        }
+        <p>
+          由 <a
+            href="https://astro.build"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="transition-colors hover:text-accent">Astro</a
+          > 驱动
+        </p>
+      </div>
+
+      <nav class="flex items-center gap-1" aria-label="社交链接">
+        {
+          social.map((item) => (
+            <a
+              href={item.href}
+              target={item.href.startsWith('http') ? '_blank' : undefined}
+              rel={item.href.startsWith('http') ? 'noopener noreferrer me' : undefined}
+              class="btn-icon"
+              title={item.label}
+            >
+              <Icon name={item.icon} size={17} title={item.label} />
+            </a>
+          ))
+        }
+        <a href={href('/rss.xml')} class="btn-icon" title={`订阅 ${site.shortTitle}`}>
+          <Icon name="rss" size={16} title="RSS 订阅" />
+        </a>
+      </nav>
+    </div>
+  </div>
+</footer>

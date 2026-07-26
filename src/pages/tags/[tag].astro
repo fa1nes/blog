@@ -1,0 +1,93 @@
+---
+import type { GetStaticPaths } from 'astro';
+import { getListedPosts, type Post } from '~/lib/posts';
+import { getNotes, type Note } from '~/lib/notes';
+import { collectAllTags } from '~/lib/tags';
+import { excerpt, formatISODate } from '~/lib/format';
+import { href } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+import PostCard from '~/components/PostCard.astro';
+import Icon from '~/components/Icon.astro';
+
+export const getStaticPaths = (async () => {
+  const posts = await getListedPosts();
+  const notes = await getNotes();
+
+  // 文章和动态的标签都要生成页面，否则只在动态里出现的标签会 404
+  return collectAllTags(posts, notes).map(({ name }) => ({
+    params: { tag: name },
+    props: {
+      tag: name,
+      posts: posts.filter((post) => post.data.tags.includes(name)),
+      notes: notes.filter((note) => note.data.tags.includes(name)),
+    },
+  }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  tag: string;
+  posts: Post[];
+  notes: Note[];
+}
+
+const { tag, posts, notes } = Astro.props;
+
+const counts = [
+  posts.length > 0 ? `${posts.length} 篇文章` : '',
+  notes.length > 0 ? `${notes.length} 条动态` : '',
+].filter(Boolean);
+---
+
+<BaseLayout title={`标签：${tag}`} description={`带有「${tag}」标签的全部内容。`}>
+  <div class="mx-auto max-w-page px-5 py-10 sm:px-8 sm:py-12">
+    <a
+      href={href('/tags/')}
+      class="mb-5 inline-flex items-center gap-1.5 meta-text transition-colors hover:text-accent"
+    >
+      <Icon name="arrowLeft" size={13} />
+      全部标签
+    </a>
+
+    <PageHeader title={`#${tag}`} meta={counts.join(' · ')} />
+
+    {
+      posts.length > 0 && (
+        <div class="mt-2">
+          {posts.map((post) => (
+            <PostCard post={post} dense />
+          ))}
+        </div>
+      )
+    }
+
+    {
+      notes.length > 0 && (
+        <section class={posts.length > 0 ? 'mt-10 border-t border-line pt-8' : 'mt-7'}>
+          <h2 class="text-[0.95rem] font-bold text-ink-strong">相关动态</h2>
+          <ul class="mt-3 flex flex-col gap-2.5">
+            {notes.map((note) => (
+              <li>
+                <a
+                  href={href('/notes/')}
+                  class="group flex flex-col gap-1 rounded-xl bg-paper-sunken px-4 py-3 transition-colors hover:bg-accent-soft"
+                >
+                  <span class="flex items-center gap-1.5 meta-text">
+                    <Icon name="clock" size={12} class="text-ink-faint" />
+                    <time datetime={note.data.pubDate.toISOString()}>
+                      {formatISODate(note.data.pubDate)}
+                    </time>
+                    {note.data.mood && <span>· {note.data.mood}</span>}
+                  </span>
+                  <span class="line-clamp-2 text-[0.93rem] leading-relaxed text-ink transition-colors group-hover:text-accent">
+                    {excerpt(note.body, 90)}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>

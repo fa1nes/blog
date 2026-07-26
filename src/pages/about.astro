@@ -1,0 +1,75 @@
+---
+import { getEntry, render } from 'astro:content';
+import { author, social } from '~/site.config';
+import { formatDate } from '~/lib/format';
+import { href } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import Icon from '~/components/Icon.astro';
+
+const entry = await getEntry('pages', 'about');
+const rendered = entry ? await render(entry) : null;
+const Content = rendered?.Content;
+
+const title = entry?.data.title ?? '关于';
+const description = entry?.data.description ?? `关于 ${author.name} 与这个博客。`;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="mx-auto max-w-page px-5 py-12 sm:px-8 sm:py-14">
+    <header class="border-b border-line pb-6">
+      <h1 class="text-[1.85rem] font-bold tracking-tight text-accent">
+        {title}
+      </h1>
+      {
+        entry?.data.updatedDate && (
+          <p class="mt-2.5 meta-text">最后更新于 {formatDate(entry.data.updatedDate)}</p>
+        )
+      }
+    </header>
+
+    {/* 作者名片：头像、简介与联系方式集中放在正文之前 */}
+    <section class="mt-8 flex flex-col gap-4 rounded-2xl bg-paper-sunken px-5 py-5 sm:flex-row sm:items-center sm:gap-5">
+      <img
+        src={href(author.avatar)}
+        alt={author.name}
+        width="56"
+        height="56"
+        loading="eager"
+        class="size-14 shrink-0 rounded-full border border-line bg-paper object-cover"
+      />
+      <div class="min-w-0 flex-1">
+        <p class="text-[1.05rem] font-bold text-ink-strong">{author.name}</p>
+        {author.bio && <p class="mt-1 text-[0.9rem] leading-relaxed text-ink-soft">{author.bio}</p>}
+      </div>
+      {
+        social.length > 0 && (
+          <div class="flex shrink-0 items-center gap-0.5">
+            {social.map((item) => (
+              <a
+                href={item.href}
+                target={item.href.startsWith('http') ? '_blank' : undefined}
+                rel={item.href.startsWith('http') ? 'noopener noreferrer me' : undefined}
+                class="btn-icon"
+                title={item.label}
+              >
+                <Icon name={item.icon} size={16} title={item.label} />
+              </a>
+            ))}
+          </div>
+        )
+      }
+    </section>
+
+    <div class="prose mt-9">
+      {
+        Content ? (
+          <Content />
+        ) : (
+          <p>
+            在 <code>src/content/pages/about.md</code> 中编写这个页面的内容。
+          </p>
+        )
+      }
+    </div>
+  </div>
+</BaseLayout>

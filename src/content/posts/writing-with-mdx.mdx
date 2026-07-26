@@ -1,0 +1,111 @@
+---
+title: 用 MDX 写文章
+description: 'MDX 让你在 Markdown 里直接使用组件。什么时候值得用它，什么时候普通 Markdown 就够了。'
+pubDate: 2026-03-14
+category: 指南
+tags: [MDX, Astro, 写作]
+---
+
+import Callout from '../../components/Callout.astro';
+import Tabs from '../../components/Tabs.astro';
+import TabItem from '../../components/TabItem.astro';
+import Terminal from '../../components/Terminal.astro';
+
+普通的 `.md` 文件已经能应付九成的写作需求。但偶尔你会想在文章里放一点固定格式的东西 —— 提示框、对比表、可折叠的补充说明。这时候把文件后缀换成 `.mdx`，就可以直接写组件。
+
+## 引入并使用组件
+
+在 frontmatter 之后写 import 语句，之后就能像写 HTML 一样使用它：
+
+```mdx
+---
+title: 我的文章
+pubDate: 2026-03-14
+---
+
+import Callout from '../../components/Callout.astro';
+
+<Callout type="tip" title="小提示">
+  这里可以写任意 Markdown 内容。
+</Callout>
+```
+
+效果是这样的：
+
+<Callout type="tip" title="小提示">
+  提示框里同样支持 **加粗**、`行内代码` 和 [链接](https://docs.astro.build)。
+</Callout>
+
+<Callout type="warning">
+  组件标签和内容之间要留一个空行，否则里面的 Markdown 语法不会被解析。
+</Callout>
+
+<Callout>
+  不写 type 时是默认的说明样式。
+</Callout>
+
+## 选项卡
+
+同一件事有几种做法时，用选项卡比堆三段代码清楚得多：
+
+<Tabs>
+  <TabItem label="npm">
+    ```bash
+    npm install
+    npm run dev
+    ```
+  </TabItem>
+  <TabItem label="pnpm">
+    ```bash
+    pnpm install
+    pnpm dev
+    ```
+  </TabItem>
+  <TabItem label="yarn">
+    ```bash
+    yarn
+    yarn dev
+    ```
+  </TabItem>
+</Tabs>
+
+选项卡支持键盘操作：聚焦到标签后用左右方向键切换。没有 JavaScript 时会退化成依次列出的几段内容，各自带一个小标题，信息不会丢。
+
+## 终端输出
+
+想展示命令的执行结果时，用终端窗口比普通代码块更直观：
+
+<Terminal title="npm run build" code={`$ npm run build
+
+▶ 26 page(s) built in 1.84s
+▶ Pagefind indexed 5 pages
+✓ Complete!`} />
+
+它在浅色模式下也保持深色背景 —— 终端本来就该是深色的。
+
+## 什么时候不该用 MDX
+
+MDX 的成本比看上去高一些：
+
+- 文件与组件产生了耦合，重命名或移动组件时文章会一起报错
+- 内容不再是纯文本，迁移到别的博客系统时需要额外处理
+- 花括号 `{}` 和小于号 `<` 在 MDX 里有特殊含义，写作时容易踩坑
+- 构建速度略慢于纯 Markdown
+
+<Callout type="warning" title="一个实际的坑">
+  在 MDX 里写数学表达式或泛型代码时，裸露的花括号会被当成 JavaScript 表达式。把它们放进代码块里就安全了。
+</Callout>
+
+所以我的经验是：**默认写 `.md`，只有当某篇文章确实需要组件时，才把它改成 `.mdx`**。两者可以在同一个目录里共存，路由、分类、标签、搜索的处理方式完全一样。
+
+## 在 MDX 里使用表达式
+
+MDX 支持 JavaScript 表达式，可以做一些自动化的事情，比如展示构建时间：
+
+```mdx
+这篇文章构建于 {new Date().getFullYear()} 年。
+```
+
+渲染出来是：这篇文章构建于 {new Date().getFullYear()} 年。
+
+不过要克制。文章的价值在内容本身，不在于它能做多少动态的事。
