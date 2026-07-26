@@ -299,7 +299,17 @@ order: 1                      # 数字小的排前面
 
 ### 一、网页后台
 
-访问 `/admin/`（本地是 http://localhost:4321/admin/ ），用表单填写标题、分类、标签、封面，正文用编辑器写，保存后自动提交到仓库并触发部署。手机浏览器也能用。
+用表单填写标题、分类、标签、封面，正文用编辑器写，保存后自动提交到仓库并触发部署。手机浏览器也能用。
+
+地址是**站点地址后面加 `/admin/`**：
+
+| 环境 | 地址 |
+| --- | --- |
+| 本地 | http://localhost:4321/admin/ |
+| 部署在根路径 | `https://你的域名/admin/` |
+| 部署在子路径 | `https://用户名.github.io/仓库名/admin/` ← **别漏掉仓库名那一段** |
+
+子路径部署时漏掉仓库名会直接 404 —— 后台是站点的一个页面，不在域名根目录。
 
 后台是 [Sveltia CMS](https://sveltiacms.app)，一个从 CDN 加载的单页应用，**不需要数据库，也不需要任何常驻服务**。它由两个文件组成：入口页面 `src/pages/admin/index.astro` 和配置 `public/admin/config.yml`。
 
@@ -310,7 +320,7 @@ order: 1                      # 数字小的排前面
 ```yaml
 backend:
   name: github
-  repo: yourname/yourrepo   # ← 改这里
+  repo: fa1nes/blog   # ← 改成你的仓库
   branch: main
 ```
 
@@ -322,7 +332,17 @@ backend:
 | **Sign In Using Access Token** | 粘贴一个 GitHub 个人访问令牌就能用，**不需要架设 OAuth 服务**，适合自己一个人用 |
 | Sign In with GitHub | 标准 OAuth 登录，需要额外部署一个 OAuth 中间服务，多人协作时才有必要 |
 
-令牌在 [Settings → Developer settings → Personal access tokens](https://github.com/settings/tokens) 生成，给它当前仓库的 Contents 读写权限即可。令牌只存在浏览器本地。
+**用令牌登录的完整步骤**：
+
+1. 打开 [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) 建一个细粒度令牌
+2. **Repository access** 选 `Only select repositories`，勾上你的博客仓库
+3. **Permissions → Repository permissions → Contents** 改成 `Read and write`（其余不用动）
+4. 生成后复制令牌（离开页面就看不到了）
+5. 回到后台点 **Sign In Using Access Token**，粘贴进弹窗，点 Sign In
+
+令牌只存在你浏览器的本地存储里，不会提交到仓库。想撤销随时回 GitHub 删掉即可。
+
+> 用经典令牌（classic token）也行，勾 `repo` 这个 scope。但细粒度令牌能限定到单个仓库，更安全。
 
 **后台能管理的内容**：
 
