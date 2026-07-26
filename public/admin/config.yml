@@ -7,7 +7,7 @@
 
 backend:
   name: github
-  repo: yourname/yourrepo
+  repo: fa1nes/blog
   branch: main
   # 提交信息模板，让仓库历史能看出是从后台改的
   commit_messages:

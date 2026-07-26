@@ -169,7 +169,7 @@ export const comments = {
   enabled: false,
   provider: 'giscus',
   giscus: {
-    repo: 'yourname/yourrepo',
+    repo: 'fa1nes/blog',
     repoId: '',
     category: 'Announcements',
     categoryId: '',

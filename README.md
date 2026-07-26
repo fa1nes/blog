@@ -82,7 +82,7 @@ npm run dev
 需要 Node.js 22.12 或更高版本。
 
 ```bash
-git clone https://github.com/yourname/yourrepo.git my-blog
+git clone https://github.com/fa1nes/blog.git my-blog
 cd my-blog
 npm install
 npm run setup     # 交互式填写站点信息
