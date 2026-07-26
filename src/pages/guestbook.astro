@@ -1,12 +1,12 @@
 ---
-import { comments as commentsConfig } from '~/site.config';
+import { commentsReady, commentsIncomplete } from '~/lib/comments';
 import BaseLayout from '~/layouts/BaseLayout.astro';
 import PageHeader from '~/components/PageHeader.astro';
 import Comments from '~/components/Comments.astro';
 ---
 
 <BaseLayout title="留言板" description="有什么想说的，都可以留在这里。">
-  <div class="mx-auto max-w-page px-5 sm:px-8 py-10 sm:py-12">
+  <div class="mx-auto max-w-page px-5 py-10 sm:px-8 sm:py-12">
     <PageHeader title="留言板" description="有什么想说的，都可以留在这里。" />
 
     <p class="mt-6 text-[0.95rem] leading-relaxed text-ink-soft">
@@ -14,10 +14,21 @@ import Comments from '~/components/Comments.astro';
       GitHub 账号登录。
     </p>
 
+    {commentsReady && <Comments />}
+
     {
-      commentsConfig.enabled ? (
-        <Comments />
-      ) : (
+      commentsIncomplete && (
+        <p class="mt-8 rounded-xl bg-paper-sunken px-4 py-3 text-[0.9rem] leading-relaxed text-ink-soft">
+          评论已开启，但 Giscus 配置还不完整 —— <code class="rounded bg-paper px-1.5 py-0.5 text-sm">repoId</code>{' '}
+          和 <code class="rounded bg-paper px-1.5 py-0.5 text-sm">categoryId</code> 需要到{' '}
+          <a href="https://giscus.app/zh-CN" class="link-underline text-accent">giscus.app</a>{' '}
+          获取后填进 <code class="rounded bg-paper px-1.5 py-0.5 text-sm">src/site.config.ts</code>。
+        </p>
+      )
+    }
+
+    {
+      !commentsReady && !commentsIncomplete && (
         <p class="mt-8 rounded-xl bg-paper-sunken px-4 py-3 text-[0.9rem] leading-relaxed text-ink-soft">
           评论功能尚未开启。在{' '}
           <code class="rounded bg-paper px-1.5 py-0.5 text-sm">src/site.config.ts</code> 里把{' '}

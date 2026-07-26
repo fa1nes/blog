@@ -1,0 +1,23 @@
+---
+// 后台入口做成 Astro 路由而不是 public 下的静态文件：
+// dev 服务器不会把 public/admin/ 解析成目录索引，放 public 时开发环境访问 /admin/ 会 404。
+// 配置仍在 public/admin/config.yml，Sveltia CMS 会从当前目录去取。
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>内容管理</title>
+  </head>
+  <body data-pagefind-ignore>
+    <!--
+      Sveltia CMS 是从 CDN 加载的单页应用，不需要额外样式表，
+      也不要加 type="module"（它不是 ES 模块，加了会影响其 JavaScript API）。
+      必须用 is:inline，否则 Vite 会改写这个 script 的地址。
+    -->
+    <script is:inline src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+  </body>
+</html>

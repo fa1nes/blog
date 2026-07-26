@@ -91,9 +91,7 @@ npm run og              # 重新生成社交分享图（改过站点标题后跑
 .
 ├── .github/workflows/       # CI 与部署工作流
 ├── public/                  # 原样复制到产物根目录的静态文件
-│   ├── admin/               # ★ 网页后台：改 config.yml 里的 repo 即可启用
-│   │   ├── index.html
-│   │   └── config.yml       # 后台的字段定义，与 content.config.ts 对应
+│   ├── admin/config.yml     # ★ 网页后台配置：改里面的 repo 即可启用
 │   ├── uploads/             # 后台上传的图片
 │   ├── favicon.svg
 │   ├── avatar.svg           # 首页头像
@@ -119,6 +117,7 @@ npm run og              # 重新生成社交分享图（改过站点标题后跑
 │   ├── layouts/             # 页面骨架与文章骨架
 │   ├── lib/                 # 日期格式化、内容查询、链接处理
 │   ├── pages/               # 路由，文件路径即网址
+│   │   └── admin/           # 网页后台入口
 │   └── styles/global.css    # 设计令牌与文章排版
 ├── docs/                    # README 用的预览截图，可以删
 ├── astro.config.ts
@@ -200,6 +199,7 @@ cover: /uploads/my-cover.jpg
 pubDate: 2026-07-24 21:40
 mood: 随手记      # 可选，显示在时间旁
 tags: [写作]      # 可选
+draft: false      # 可选，true 时只在本地可见
 ---
 
 正文，支持全部 Markdown 语法。
@@ -270,7 +270,9 @@ order: 1                      # 数字小的排前面
 
 访问 `/admin/`（本地是 http://localhost:4321/admin/ ），用表单填写标题、分类、标签、封面，正文用编辑器写，保存后自动提交到仓库并触发部署。手机浏览器也能用。
 
-后台是 [Sveltia CMS](https://sveltiacms.app)，一个从 CDN 加载的单页应用，**不需要数据库，也不需要任何常驻服务**。
+后台是 [Sveltia CMS](https://sveltiacms.app)，一个从 CDN 加载的单页应用，**不需要数据库，也不需要任何常驻服务**。它由两个文件组成：入口页面 `src/pages/admin/index.astro` 和配置 `public/admin/config.yml`。
+
+> 入口做成 Astro 路由而不是 `public/` 下的静态 HTML，是因为开发服务器不会把 `public/admin/` 解析成目录索引 —— 放 `public/` 时本地访问 `/admin/` 会 404，只能访问 `/admin/index.html`。现在开发和生产的路径一致。
 
 **启用前只需要改一处**：把 `public/admin/config.yml` 里的 `repo` 改成你的仓库：
 

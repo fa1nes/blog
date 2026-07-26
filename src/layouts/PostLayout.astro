@@ -5,7 +5,8 @@ import type { Post } from '~/lib/posts';
 import { postSlug, postSummary } from '~/lib/posts';
 import { formatDate, formatISODate, readingTime } from '~/lib/format';
 import { categoryPath, href, postPath, tagPath } from '~/lib/url';
-import { comments as commentsConfig, features } from '~/site.config';
+import { features } from '~/site.config';
+import { commentsReady } from '~/lib/comments';
 import { tocHeadings } from '~/lib/toc';
 import BaseLayout from '~/layouts/BaseLayout.astro';
 import Comments from '~/components/Comments.astro';
@@ -27,7 +28,7 @@ const { title, description, pubDate, updatedDate, category, tags, cover, coverAl
 const summary = postSummary(post);
 const stats = readingTime(post.body);
 const showToc = features.toc && post.data.toc && tocHeadings(headings).length > 1;
-const showComments = commentsConfig.enabled && post.data.comments;
+const showComments = commentsReady && post.data.comments;
 ---
 
 <BaseLayout

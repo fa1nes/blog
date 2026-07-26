@@ -41,7 +41,8 @@ export default defineConfig({
     ...(seo.sitemap
       ? [
           sitemap({
-            filter: (page) => !page.includes('/404'),
+            // 后台与 404 不该出现在站点地图里
+            filter: (page) => !page.includes('/404') && !page.includes('/admin'),
           }),
         ]
       : []),
