@@ -13,11 +13,12 @@
     <title>内容管理</title>
   </head>
   <body data-pagefind-ignore>
-    <!--
-      Sveltia CMS 是从 CDN 加载的单页应用，不需要额外样式表，
-      也不要加 type="module"（它不是 ES 模块，加了会影响其 JavaScript API）。
+    {/*
+      Sveltia CMS 从 CDN 加载，不需要额外样式表，也不要加 type="module"
+      （它不是 ES 模块，加了会影响其 JavaScript API）。
       必须用 is:inline，否则 Vite 会改写这个 script 的地址。
-    -->
+      用模板注释而非 HTML 注释，避免这段说明被输出到生产页面。
+    */}
     <script is:inline src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
   </body>
 </html>

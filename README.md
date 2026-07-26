@@ -465,7 +465,8 @@ export const comments = {
    | 框架预设 | Astro |
    | 构建命令 | `npm run build` |
    | 构建输出目录 | `dist` |
-   | Node 版本 | 环境变量加 `NODE_VERSION` = `22` |
+
+   Node 版本不用配 —— 仓库里的 `.node-version` 会被自动读取。（Cloudflare Pages 的默认 Node 版本低于 Astro 7 的要求，没有这个文件就必须手动加 `NODE_VERSION` 环境变量，否则构建会失败。）
 
 4. 可选：加环境变量 `SITE_URL`，值为你的最终域名
 
