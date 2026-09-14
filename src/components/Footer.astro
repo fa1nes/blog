@@ -11,18 +11,18 @@ const years =
 const owner = footer.copyright || author.name;
 ---
 
-<footer class="mt-20 border-t border-line">
+<footer class="mt-16 border-t border-line bg-paper-raised/45 sm:mt-20">
   <div class="mx-auto max-w-page px-5 py-9 sm:px-8">
     <nav class="flex flex-wrap gap-x-5 gap-y-2 pb-6 text-[0.88rem]" aria-label="页脚导航">
       {
         nav.map((item) => (
-          <a href={href(item.href)} class="text-ink-soft transition-colors hover:text-accent">
+          <a href={href(item.href)} class="link-underline text-ink-soft">
             {item.label}
           </a>
         ))
       }
-      <a href={href('/tags/')} class="text-ink-soft transition-colors hover:text-accent">标签</a>
-      <a href={href('/search/')} class="text-ink-soft transition-colors hover:text-accent">搜索</a>
+      <a href={href('/tags/')} class="link-underline text-ink-soft">标签</a>
+      <a href={href('/search/')} class="link-underline text-ink-soft">搜索</a>
     </nav>
 
     <div

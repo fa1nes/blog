@@ -18,7 +18,7 @@ const recentNotes =
 
 <BaseLayout title={site.title} description={site.description}>
   <div class="mx-auto max-w-page px-5 sm:px-8">
-    <section class="border-b border-line py-14 sm:py-16">
+    <section class="border-b border-line py-11 sm:py-14">
       <h1 class="text-[2rem] font-bold leading-tight tracking-tight text-accent sm:text-[2.45rem]">
         {site.title}
       </h1>
@@ -62,15 +62,15 @@ const recentNotes =
       </div>
     </section>
 
-    <section class="py-10">
+    <section class="py-9 sm:py-10">
       <div class="flex items-baseline justify-between gap-4">
-        <h2 class="font-bold text-lg text-ink-strong">最近更新</h2>
+        <h2 class="text-xl font-bold tracking-tight text-ink-strong">最近更新</h2>
         <a
           href={href('/posts/')}
-          class="flex items-center gap-1 text-sm text-ink-soft transition-colors hover:text-accent"
+          class="group flex items-center gap-1 rounded-full bg-paper-sunken px-3 py-1.5 text-sm font-medium text-ink-soft transition-colors hover:bg-accent-soft hover:text-accent"
         >
           全部文章
-          <Icon name="arrowRight" size={14} />
+          <Icon name="arrowRight" size={14} class="transition-transform group-hover:translate-x-0.5" />
         </a>
       </div>
 

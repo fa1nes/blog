@@ -10,9 +10,82 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>内容管理</title>
+    <meta name="theme-color" content="#268358" />
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <title>砚台与代码 · 内容管理</title>
   </head>
   <body data-pagefind-ignore>
+    <noscript>
+      <main class="admin-fallback">
+        <h1>需要启用 JavaScript</h1>
+        <p>内容管理后台依赖 JavaScript 才能加载，请启用后刷新页面。</p>
+        <a href="../../">返回博客首页</a>
+      </main>
+    </noscript>
+
+    <style is:inline>
+      :root {
+        color-scheme: light dark;
+        font-family:
+          system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+          'Microsoft YaHei', sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #f8fafc;
+        color: #35434f;
+      }
+
+      .admin-fallback {
+        box-sizing: border-box;
+        width: min(100% - 2rem, 32rem);
+        margin: 15vh auto 0;
+        padding: 2rem;
+        border: 1px solid #dde3ea;
+        border-radius: 1rem;
+        background: #fff;
+        box-shadow: 0 12px 36px rgb(0 0 0 / 8%);
+      }
+
+      .admin-fallback h1 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .admin-fallback p {
+        margin: 0.75rem 0 1.25rem;
+        line-height: 1.7;
+        color: #50616d;
+      }
+
+      .admin-fallback a {
+        color: #268358;
+        text-underline-offset: 0.2em;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #1a202c;
+          color: #f3f7fb;
+        }
+
+        .admin-fallback {
+          border-color: #3f4c5f;
+          background: #232b38;
+        }
+
+        .admin-fallback p {
+          color: #a0aec0;
+        }
+
+        .admin-fallback a {
+          color: #68d391;
+        }
+      }
+    </style>
+
     {/*
       Sveltia CMS 从 CDN 加载，不需要额外样式表，也不要加 type="module"
       （它不是 ES 模块，加了会影响其 JavaScript API）。

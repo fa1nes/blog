@@ -8,7 +8,7 @@ const pathname = Astro.url.pathname;
 const monogram = site.shortTitle.trim().slice(0, 1);
 ---
 
-<header class="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md">
+<header class="sticky top-0 z-50 border-b border-line bg-paper/92 shadow-[0_1px_0_rgb(0_0_0/0.02)] backdrop-blur-md">
   <div class="mx-auto flex h-14 max-w-page items-center gap-4 px-5 sm:px-8">
     <a href={href('/')} class="group flex shrink-0 items-center gap-2">
       <span
@@ -27,7 +27,7 @@ const monogram = site.shortTitle.trim().slice(0, 1);
         nav.map((item) => (
           <a
             href={href(item.href)}
-            class="text-[0.9rem] font-medium text-ink-soft transition-colors hover:text-accent aria-[current=page]:text-accent"
+            class="relative py-1 text-[0.9rem] font-medium text-ink-soft transition-colors after:absolute after:inset-x-0 after:-bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:rounded-full after:bg-accent after:transition-transform hover:text-accent hover:after:scale-x-100 aria-[current=page]:text-accent aria-[current=page]:after:scale-x-100"
             aria-current={isActive(pathname, item.href) ? 'page' : undefined}
           >
             {item.label}
@@ -55,6 +55,7 @@ const monogram = site.shortTitle.trim().slice(0, 1);
         <summary
           class="grid size-9 cursor-pointer list-none place-items-center rounded-full text-ink-soft transition-colors hover:bg-paper-sunken hover:text-accent [&::-webkit-details-marker]:hidden"
           aria-label="展开导航菜单"
+          aria-haspopup="menu"
         >
           <Icon name="menu" size={18} class="block group-open:hidden" />
           <Icon name="close" size={18} class="hidden group-open:block" />
@@ -87,5 +88,19 @@ const monogram = site.shortTitle.trim().slice(0, 1);
     if (menu?.open && !menu.contains(event.target as Node)) {
       menu.open = false;
     }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const menu = document.querySelector<HTMLDetailsElement>('details[data-mobile-nav]');
+    if (event.key === 'Escape' && menu?.open) {
+      menu.open = false;
+      menu.querySelector<HTMLElement>('summary')?.focus();
+    }
+  });
+
+  const menu = document.querySelector<HTMLDetailsElement>('details[data-mobile-nav]');
+  const trigger = menu?.querySelector<HTMLElement>('summary');
+  menu?.addEventListener('toggle', () => {
+    trigger?.setAttribute('aria-label', menu.open ? '收起导航菜单' : '展开导航菜单');
   });
 </script>

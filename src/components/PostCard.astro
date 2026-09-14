@@ -51,7 +51,7 @@ const thumbClass =
       </div>
 
       <h2 class="mt-2 text-[1.3rem] font-bold leading-snug tracking-tight">
-        <a href={link} class="text-accent transition-opacity hover:opacity-75">
+        <a href={link} class="text-accent decoration-accent/40 underline-offset-4 transition-colors hover:text-accent-hover hover:underline focus-visible:underline">
           {title}
         </a>
       </h2>
@@ -65,7 +65,7 @@ const thumbClass =
 
     {
       cover && (
-        <a href={link} class="shrink-0" tabindex="-1" aria-hidden="true">
+        <a href={link} class="shrink-0 overflow-hidden rounded-lg" tabindex="-1" aria-hidden="true">
           {typeof cover === 'string' ? (
             <img src={href(cover)} alt={coverAlt ?? title} class={thumbClass} loading="lazy" />
           ) : (
