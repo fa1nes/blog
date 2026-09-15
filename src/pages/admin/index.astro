@@ -12,9 +12,28 @@
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#268358" />
     <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
-    <title>砚台与代码 · 内容管理</title>
+    <title>砚台与代码 · 内容工作台</title>
   </head>
   <body data-pagefind-ignore>
+    <header class="admin-brand" data-admin-shell>
+      <a href="../../" class="admin-brand-link" aria-label="返回博客首页">
+        <img src="../../favicon.svg" alt="" width="32" height="32" />
+        <span>
+          <strong>砚台与代码</strong>
+          <small>内容工作台</small>
+        </span>
+      </a>
+      <a href="../../" class="admin-site-link">查看博客</a>
+    </header>
+
+    <main class="admin-loading" data-admin-shell role="status" aria-live="polite">
+      <span class="admin-spinner" aria-hidden="true"></span>
+      <div>
+        <strong>正在打开内容工作台</strong>
+        <p>加载文章、动态、友链与页面管理功能…</p>
+      </div>
+    </main>
+
     <noscript>
       <main class="admin-fallback">
         <h1>需要启用 JavaScript</h1>
@@ -36,6 +55,94 @@
         min-height: 100vh;
         background: #f8fafc;
         color: #35434f;
+      }
+
+      .admin-brand {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 4rem;
+        padding: 0.75rem clamp(1rem, 4vw, 2rem);
+        border-bottom: 1px solid #dde3ea;
+        background: rgb(255 255 255 / 92%);
+        backdrop-filter: blur(12px);
+      }
+
+      .admin-brand-link {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .admin-brand-link span {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .admin-brand-link strong {
+        color: #35434f;
+        font-size: 0.95rem;
+      }
+
+      .admin-brand-link small {
+        color: #6b7885;
+        font-size: 0.75rem;
+      }
+
+      .admin-site-link {
+        padding: 0.45rem 0.85rem;
+        border-radius: 9999px;
+        background: #eafaf2;
+        color: #1e7049;
+        font-size: 0.82rem;
+        font-weight: 600;
+        text-decoration: none;
+      }
+
+      .admin-loading {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        min-height: calc(100vh - 4rem);
+        padding: 2rem;
+      }
+
+      .admin-loading strong {
+        display: block;
+        color: #35434f;
+      }
+
+      .admin-loading p {
+        margin: 0.25rem 0 0;
+        color: #6b7885;
+        font-size: 0.85rem;
+      }
+
+      .admin-spinner {
+        width: 1.25rem;
+        height: 1.25rem;
+        border: 2px solid #dde3ea;
+        border-top-color: #268358;
+        border-radius: 9999px;
+        animation: admin-spin 0.75s linear infinite;
+      }
+
+      @keyframes admin-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .admin-spinner {
+          animation: none;
+          border-color: #268358;
+        }
       }
 
       .admin-fallback {
@@ -92,6 +199,11 @@
       必须用 is:inline，否则 Vite 会改写这个 script 的地址。
       用模板注释而非 HTML 注释，避免这段说明被输出到生产页面。
     */}
-    <script is:inline src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"></script>
+    <script
+      is:inline
+      src="https://unpkg.com/@sveltia/cms/dist/sveltia-cms.js"
+      onload="document.querySelectorAll('[data-admin-shell]').forEach((element) => element.remove())"
+      onerror="document.querySelector('[data-admin-shell][role=status] p').textContent='后台资源加载失败，请检查网络后刷新页面。'"
+    ></script>
   </body>
 </html>
