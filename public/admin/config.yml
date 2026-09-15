@@ -9,6 +9,9 @@ backend:
   name: github
   repo: fa1nes/blog
   branch: main
+  # GitHub Pages 没有 OAuth 回调服务，避免登录后跳到不存在的地址。
+  # 个人博客后台使用 GitHub Personal Access Token 登录最稳定。
+  auth_methods: [token]
   # 提交信息模板，让仓库历史能看出是从后台改的
   commit_messages:
     create: '内容：新增 {{collection}}「{{slug}}」'
