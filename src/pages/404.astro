@@ -1,19 +1,40 @@
 ---
 import { href } from '~/lib/url';
 import BaseLayout from '~/layouts/BaseLayout.astro';
+import Icon from '~/components/Icon.astro';
 ---
 
 <BaseLayout title="页面不存在" description="没有找到这个页面。" noindex>
-  <div class="mx-auto flex max-w-[36rem] flex-col items-center px-5 py-24 text-center sm:py-32">
-    <p class="text-[4.5rem] font-bold leading-none text-accent/25 tabular-nums">404</p>
-    <h1 class="mt-4 text-2xl font-bold text-ink-strong">这里什么都没有</h1>
-    <p class="mt-3 text-[0.95rem] text-ink-soft">
-      你访问的页面可能已经被移动、重命名，或者从来就不存在。
-    </p>
-    <div class="mt-8 flex flex-wrap justify-center gap-2.5">
-      <a href={href('/')} class="btn-primary">返回首页</a>
-      <a href={href('/posts/')} class="btn-ghost">浏览文章</a>
-      <a href={href('/search/')} class="btn-ghost">搜索</a>
-    </div>
+  <div class="mx-auto flex min-h-[calc(100svh-12rem)] max-w-[40rem] items-center px-5 py-16 sm:px-8">
+    <section class="w-full rounded-2xl border border-line bg-paper-raised/55 px-6 py-10 text-center shadow-[0_18px_60px_rgb(0_0_0/0.05)] sm:px-10 sm:py-14">
+      <div class="mx-auto grid size-14 place-items-center rounded-full bg-accent-soft text-accent" aria-hidden="true">
+        <Icon name="search" size={24} />
+      </div>
+
+      <p class="mt-6 text-[0.75rem] font-bold uppercase tracking-[0.22em] text-accent">错误 404</p>
+      <h1 class="mt-2 text-2xl font-bold tracking-tight text-ink-strong sm:text-3xl">没有找到这个页面</h1>
+      <p class="mx-auto mt-4 max-w-[30rem] text-[0.95rem] leading-relaxed text-ink-soft">
+        链接可能已经失效，页面也可能被移动或重命名。返回首页，继续浏览文章，或者搜索想找的内容。
+      </p>
+
+      <div class="mt-8 flex flex-wrap justify-center gap-2.5">
+        <a href={href('/')} class="btn-primary">
+          <Icon name="arrowLeft" size={15} />
+          返回首页
+        </a>
+        <a href={href('/posts/')} class="btn-ghost">
+          <Icon name="edit" size={15} />
+          浏览文章
+        </a>
+        <a href={href('/search/')} class="btn-ghost">
+          <Icon name="search" size={15} />
+          搜索本站
+        </a>
+      </div>
+
+      <p class="mt-8 border-t border-line pt-6 meta-text">
+        如果你是从站内链接来到这里，这可能是一个需要修复的链接。
+      </p>
+    </section>
   </div>
 </BaseLayout>

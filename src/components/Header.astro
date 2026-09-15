@@ -43,6 +43,7 @@ const monogram = site.shortTitle.trim().slice(0, 1);
             href={href('/search/')}
             class="btn-icon"
             aria-label="搜索"
+            aria-keyshortcuts="/"
             title="搜索"
           >
             <Icon name="search" size={18} />
@@ -102,5 +103,23 @@ const monogram = site.shortTitle.trim().slice(0, 1);
   const trigger = menu?.querySelector<HTMLElement>('summary');
   menu?.addEventListener('toggle', () => {
     trigger?.setAttribute('aria-label', menu.open ? '收起导航菜单' : '展开导航菜单');
+  });
+
+  // 在非编辑区域按 / 快速进入搜索
+  document.addEventListener('keydown', (event) => {
+    const target = event.target as HTMLElement | null;
+    const editing = target?.matches('input, textarea, select') || target?.isContentEditable;
+    if (
+      event.key === '/' &&
+      !editing &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey
+    ) {
+      const searchLink = document.querySelector<HTMLAnchorElement>('a[aria-keyshortcuts="/"]');
+      if (!searchLink) return;
+      event.preventDefault();
+      window.location.href = searchLink.href;
+    }
   });
 </script>
