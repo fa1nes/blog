@@ -33,8 +33,10 @@ public_folder: /uploads
 # 后台默认使用简易工作流：保存即提交到 main 分支，随后 CI 自动部署
 publish_mode: simple
 
-# 后台品牌与站点入口。语言由浏览器偏好自动决定。
-app_title: 砚台与代码 · 内容管理
+# 后台品牌与站点入口。明确线上根路径，避免预览链接遗漏 /blog/。
+site_url: https://fa1nes.github.io/blog
+display_url: https://fa1nes.github.io/blog
+app_title: 砚台与代码 · 内容工作台
 logo:
   src: ../favicon.svg
   show_in_header: true
