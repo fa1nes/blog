@@ -1,0 +1,23 @@
+---
+import { Code } from 'astro:components';
+
+interface Props {
+  title?: string;
+  code?: string;
+  lang?: string;
+}
+
+const { title, code, lang = 'bash' } = Astro.props;
+---
+
+<div class="terminal">
+  <div class="terminal-bar">
+    <span class="terminal-dots" aria-hidden="true">
+      <i></i><i></i><i></i>
+    </span>
+    {title && <span class="terminal-title">{title}</span>}
+  </div>
+  <div class="terminal-body">
+    {code ? <Code code={code.trim()} lang={lang as never} theme="vitesse-dark" /> : <slot />}
+  </div>
+</div>

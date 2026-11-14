@@ -1,0 +1,33 @@
+name: 检查
+
+# 只在 Pull Request 上运行，推送到 main 时由部署工作流负责检查，避免重复构建
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: 类型检查与构建
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v7
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run check
+
+      - name: 构建站点
+        env:
+          # 来自 fork 的 PR 拿不到 secret，此时构建的是空壳站点，仍能验证代码
+          CONTENT_REPO_TOKEN: ${{ secrets.CONTENT_REPO_TOKEN }}
+        run: npm run build

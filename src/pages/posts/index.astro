@@ -1,0 +1,18 @@
+---
+import { content } from '~/site.config';
+import { getListedPosts } from '~/lib/posts';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PostsIndex from '~/components/PostsIndex.astro';
+
+const posts = await getListedPosts();
+const totalPages = Math.max(1, Math.ceil(posts.length / content.postsPerPage));
+---
+
+<BaseLayout title="全部文章" description="按时间浏览这个博客的所有文章。">
+  <PostsIndex
+    posts={posts.slice(0, content.postsPerPage)}
+    currentPage={1}
+    totalPages={totalPages}
+    total={posts.length}
+  />
+</BaseLayout>

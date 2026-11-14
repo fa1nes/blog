@@ -1,0 +1,174 @@
+---
+import { site, author, content, social } from '~/site.config';
+import { getListedPosts, collectCategories } from '~/lib/posts';
+import { getNotes } from '~/lib/notes';
+import { collectAllTags } from '~/lib/tags';
+import { excerpt, formatISODate } from '~/lib/format';
+import { href, notePath } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PostCard from '~/components/PostCard.astro';
+import Icon from '~/components/Icon.astro';
+
+const posts = await getListedPosts();
+const recent = posts.slice(0, content.homePostCount);
+const notes = await getNotes();
+
+// 动态容易被埋在二级页面里，首页放几条最新的让它更容易被看到
+const recentNotes = content.homeNoteCount > 0 ? notes.slice(0, content.homeNoteCount) : [];
+
+// 首屏给出去处和体量：读者能立刻判断这里更不更新、有没有东西可读
+const overview = [
+  { label: '篇文章', value: posts.length, href: '/posts/' },
+  { label: '条动态', value: notes.length, href: '/notes/' },
+  { label: '个分类', value: collectCategories(posts).length, href: '/categories/' },
+  { label: '个标签', value: collectAllTags(posts, notes).length, href: '/tags/' },
+];
+---
+
+<BaseLayout title={site.title} description={site.description}>
+  <div class="mx-auto max-w-page px-5 sm:px-8">
+    <section class="border-b border-line py-11 sm:py-14">
+      <h1 class="text-[2rem] font-bold leading-tight tracking-tight text-accent sm:text-[2.45rem]">
+        {site.title}
+      </h1>
+      <p class="mt-3 text-[1.05rem] text-ink-soft sm:text-[1.15rem]">
+        {site.subtitle}
+      </p>
+      <p class="mt-5 max-w-[34rem] text-[0.98rem] leading-relaxed text-ink-soft">
+        {site.description}
+      </p>
+
+      <div class="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5">
+        <div class="flex items-center gap-3">
+          <img
+            src={href(author.avatar)}
+            alt={author.name}
+            width="48"
+            height="48"
+            class="size-12 shrink-0 rounded-full ring-2 ring-accent/10 transition-transform hover:scale-105"
+            loading="eager"
+          />
+          <span class="flex min-w-0 flex-col">
+            <span class="text-[0.95rem] font-semibold text-ink-strong">{author.name}</span>
+            <span class="text-[0.85rem] leading-relaxed text-ink-soft">{author.bio}</span>
+          </span>
+        </div>
+
+        {social.length > 0 && (
+          <span class="hidden h-7 w-px bg-line sm:block" aria-hidden="true" />
+        )}
+
+        <div class="flex items-center gap-0.5">
+          {
+            social.map((item) => (
+              <a
+                href={item.href}
+                target={item.href.startsWith('http') ? '_blank' : undefined}
+                rel={item.href.startsWith('http') ? 'noopener noreferrer me' : undefined}
+                class="btn-icon"
+                title={item.label}
+              >
+                <Icon name={item.icon} size={16} title={item.label} />
+              </a>
+            ))
+          }
+        </div>
+      </div>
+
+      <div class="mt-9 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <ul class="flex flex-wrap items-baseline gap-x-5 gap-y-1.5">
+          {
+            overview.map((item) => (
+              <li>
+                <a
+                  href={href(item.href)}
+                  class="group inline-flex items-baseline gap-1 transition-colors"
+                >
+                  <span class="text-[1.05rem] font-semibold tabular-nums text-ink-strong transition-colors group-hover:text-accent">
+                    {item.value}
+                  </span>
+                  <span class="text-[0.8rem] text-ink-soft group-hover:text-accent">{item.label}</span>
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+
+        <a
+          href={href('/rss.xml')}
+          class="inline-flex items-center gap-1.5 text-[0.82rem] font-medium text-ink-soft transition-colors hover:text-accent"
+        >
+          <Icon name="rss" size={13} />
+          订阅 RSS
+        </a>
+      </div>
+    </section>
+
+    <section class="py-9 sm:py-10">
+      <div class="flex items-baseline justify-between gap-4">
+        <h2 class="text-xl font-bold tracking-tight text-ink-strong">最近更新</h2>
+        <a
+          href={href('/posts/')}
+          class="group flex items-center gap-1 rounded-full bg-paper-sunken px-3 py-1.5 text-sm font-medium text-ink-soft transition-colors hover:bg-accent-soft hover:text-accent"
+        >
+          全部文章
+          <Icon name="arrowRight" size={14} class="transition-transform group-hover:translate-x-0.5" />
+        </a>
+      </div>
+
+      {
+        recent.length > 0 ? (
+          <div class="mt-2">
+            {recent.map((post) => (
+              <PostCard post={post} />
+            ))}
+          </div>
+        ) : (
+          <p class="mt-6 text-ink-soft">
+            还没有文章。在 <code class="rounded bg-paper-sunken px-1.5 py-0.5 text-sm">src/content/posts/</code>{' '}
+            下新建一个 Markdown 文件就可以开始写作了。
+          </p>
+        )
+      }
+    </section>
+
+    {
+      recentNotes.length > 0 && (
+        <section class="border-t border-line py-10">
+          <div class="flex items-baseline justify-between gap-4">
+            <h2 class="text-lg font-bold text-ink-strong">最新动态</h2>
+            <a
+              href={href('/notes/')}
+              class="flex items-center gap-1 text-sm text-ink-soft transition-colors hover:text-accent"
+            >
+              全部动态
+              <Icon name="arrowRight" size={14} />
+            </a>
+          </div>
+
+          <ul class="mt-4 flex flex-col gap-3">
+            {recentNotes.map((note) => (
+              <li>
+                <a
+                  href={notePath(note.id)}
+                  class="group flex flex-col gap-1 rounded-xl bg-paper-sunken px-4 py-3 transition-colors hover:bg-accent-soft"
+                >
+                  <span class="flex items-center gap-1.5 meta-text">
+                    <Icon name="clock" size={12} class="text-ink-faint" />
+                    <time datetime={note.data.pubDate.toISOString()}>
+                      {formatISODate(note.data.pubDate)}
+                    </time>
+                    {note.data.mood && <span>· {note.data.mood}</span>}
+                  </span>
+                  <span class="line-clamp-2 text-[0.93rem] leading-relaxed text-ink transition-colors group-hover:text-accent">
+                    {excerpt(note.body, 90)}
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </div>
+</BaseLayout>

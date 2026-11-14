@@ -1,0 +1,93 @@
+---
+import { site, author, social, footer, nav, analytics } from '~/site.config';
+import { href } from '~/lib/url';
+import Icon from '~/components/Icon.astro';
+
+const currentYear = new Date().getFullYear();
+const years =
+  footer.startYear && footer.startYear < currentYear
+    ? `${footer.startYear} - ${currentYear}`
+    : `${currentYear}`;
+const owner = footer.copyright || author.name;
+
+// vercount 靠固定 id 的占位元素回填数字，其他统计服务只在自己的面板里看，不占页脚
+const showCounters = analytics.provider === 'vercount' && analytics.showCounters;
+---
+
+<footer class="mt-16 border-t border-line bg-paper-raised/45 sm:mt-20">
+  <div class="mx-auto max-w-page px-5 py-9 sm:px-8">
+    <nav class="flex flex-wrap gap-x-5 gap-y-2 pb-6 text-[0.88rem]" aria-label="页脚导航">
+      {
+        nav.map((item) => (
+          <a href={href(item.href)} class="link-underline text-ink-soft">
+            {item.label}
+          </a>
+        ))
+      }
+      <a href={href('/tags/')} class="link-underline text-ink-soft">标签</a>
+      <a href={href('/search/')} class="link-underline text-ink-soft">搜索</a>
+    </nav>
+
+    <div
+      class="flex flex-col gap-5 border-t border-line pt-6 sm:flex-row sm:items-start sm:justify-between"
+    >
+      <div class="flex flex-col gap-1.5 meta-text">
+        <p>© {years} {owner}</p>
+        {footer.note && <p>{footer.note}</p>}
+        {
+          showCounters && (
+            <p class="tabular-nums">
+              <span id="vercount_value_site_uv">—</span>{' '}位访客 · 共{' '}
+              <span id="vercount_value_site_pv">—</span>{' '}次浏览
+            </p>
+          )
+        }
+        {
+          footer.icp && (
+            <a
+              href={footer.icpUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="w-fit transition-colors hover:text-accent"
+            >
+              {footer.icp}
+            </a>
+          )
+        }
+        <p>
+          由 <a
+            href="https://astro.build"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="transition-colors hover:text-accent">Astro</a
+          > 驱动
+        </p>
+      </div>
+
+      <nav class="flex items-center gap-1" aria-label="社交链接">
+        {
+          social.map((item) => (
+            <a
+              href={item.href}
+              target={item.href.startsWith('http') ? '_blank' : undefined}
+              rel={item.href.startsWith('http') ? 'noopener noreferrer me' : undefined}
+              class="btn-icon"
+              aria-label={item.label}
+              title={item.label}
+            >
+              <Icon name={item.icon} size={17} title={item.label} />
+            </a>
+          ))
+        }
+        <a
+          href={href('/rss.xml')}
+          class="btn-icon"
+          aria-label={`订阅 ${site.shortTitle}`}
+          title={`订阅 ${site.shortTitle}`}
+        >
+          <Icon name="rss" size={16} title="RSS 订阅" />
+        </a>
+      </nav>
+    </div>
+  </div>
+</footer>

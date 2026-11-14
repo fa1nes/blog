@@ -1,0 +1,25 @@
+{
+  "name": "fa1nes 的博客",
+  "short_name": "fa1nes",
+  "description": "fa1nes 的个人博客，记录技术实践、开发工具、问题排查与日常思考。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "browser",
+  "background_color": "#ffffff",
+  "theme_color": "#18362d",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

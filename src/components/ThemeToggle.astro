@@ -1,0 +1,53 @@
+---
+import Icon from '~/components/Icon.astro';
+---
+
+<button
+  id="theme-toggle"
+  type="button"
+  class="btn-icon"
+  aria-label="切换深色模式"
+  aria-pressed="false"
+  title="切换深色模式"
+>
+  <Icon name="sun" size={18} class="hidden dark:block" />
+  <Icon name="moon" size={18} class="block dark:hidden" />
+</button>
+
+<script>
+  const button = document.getElementById('theme-toggle');
+
+  // 地址栏颜色直接读 --paper，和页面背景永远一致；
+  // 手动切换主题后系统偏好那两条 media 规则不再准确，这里覆盖掉。
+  function syncThemeColor() {
+    const paper = getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+    if (!paper) return;
+    for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+      meta.content = paper;
+    }
+  }
+
+  function syncThemeButton(isDark: boolean) {
+    if (!button) return;
+    const label = isDark ? '切换浅色模式' : '切换深色模式';
+    button.setAttribute('aria-label', label);
+    button.setAttribute('aria-pressed', String(isDark));
+    button.setAttribute('title', label);
+  }
+
+  syncThemeButton(document.documentElement.classList.contains('dark'));
+  syncThemeColor();
+
+  button?.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    syncThemeButton(isDark);
+    syncThemeColor();
+    try {
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    } catch {
+      /* 忽略无法写入存储的情况 */
+    }
+    // 通知 Giscus 同步主题
+    document.dispatchEvent(new CustomEvent('theme-change', { detail: { isDark } }));
+  });
+</script>

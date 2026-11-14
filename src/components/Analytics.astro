@@ -1,0 +1,32 @@
+---
+import { analytics } from '~/site.config';
+
+// 统计脚本是页面里唯一的外部请求，放在这里集中管理：
+// 换成 Cloudflare 或 GoatCounter 只改 site.config.ts，不用翻模板。
+const provider = analytics.provider;
+const showCounters = provider === 'vercount' && analytics.showCounters;
+---
+
+{showCounters && <script is:inline defer src="https://events.vercount.one/js"></script>}
+
+{
+  provider === 'cloudflare' && analytics.cloudflareToken && (
+    <script
+      is:inline
+      defer
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon={JSON.stringify({ token: analytics.cloudflareToken })}
+    />
+  )
+}
+
+{
+  provider === 'goatcounter' && analytics.goatcounterCode && (
+    <script
+      is:inline
+      async
+      src="https://gc.zgo.at/count.js"
+      data-goatcounter={`https://${analytics.goatcounterCode}.goatcounter.com/count`}
+    />
+  )
+}

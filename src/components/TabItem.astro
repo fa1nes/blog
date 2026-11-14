@@ -1,0 +1,13 @@
+---
+interface Props {
+  label: string;
+}
+
+const { label } = Astro.props;
+---
+
+<div class="tab-panel" data-tab-label={label}>
+  {/* 无 JavaScript 时靠这行小标题区分各面板 */}
+  <p class="tab-panel-fallback-title">{label}</p>
+  <slot />
+</div>

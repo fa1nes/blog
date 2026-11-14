@@ -1,0 +1,65 @@
+---
+// Astro 组件读不到子组件 props，标签栏改由脚本按 data-tab-label 生成；
+// 无 JavaScript 时所有面板带小标题依次显示，内容不丢
+---
+
+<div class="tabs" data-tabs>
+  <slot />
+</div>
+
+<script>
+  for (const group of document.querySelectorAll<HTMLElement>('[data-tabs]')) {
+    const panels = [...group.querySelectorAll<HTMLElement>(':scope > .tab-panel')];
+    if (panels.length === 0) continue;
+
+    const groupId = Math.random().toString(36).slice(2, 8);
+    const tablist = document.createElement('div');
+    tablist.className = 'tab-list';
+    tablist.setAttribute('role', 'tablist');
+
+    const buttons = panels.map((panel, index) => {
+      const label = panel.dataset.tabLabel ?? `选项 ${index + 1}`;
+      panel.id = `tabpanel-${groupId}-${index}`;
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-labelledby', `tab-${groupId}-${index}`);
+      panel.hidden = index !== 0;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.id = `tab-${groupId}-${index}`;
+      button.className = 'tab-button';
+      button.textContent = label;
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-controls', panel.id);
+      button.setAttribute('aria-selected', String(index === 0));
+      button.tabIndex = index === 0 ? 0 : -1;
+      tablist.appendChild(button);
+      return button;
+    });
+
+    const select = (index: number) => {
+      buttons.forEach((button, i) => {
+        button.setAttribute('aria-selected', String(i === index));
+        button.tabIndex = i === index ? 0 : -1;
+      });
+      panels.forEach((panel, i) => {
+        panel.hidden = i !== index;
+      });
+    };
+
+    buttons.forEach((button, index) => {
+      button.addEventListener('click', () => select(index));
+      button.addEventListener('keydown', (event) => {
+        const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+        if (!offset) return;
+        event.preventDefault();
+        const next = (index + offset + buttons.length) % buttons.length;
+        select(next);
+        buttons[next].focus();
+      });
+    });
+
+    group.prepend(tablist);
+    group.dataset.ready = 'true';
+  }
+</script>

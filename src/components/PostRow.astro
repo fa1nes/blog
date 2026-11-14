@@ -1,0 +1,35 @@
+---
+import type { Post } from '~/lib/posts';
+import { postSlug } from '~/lib/posts';
+import { formatMonthDay } from '~/lib/format';
+import { postPath } from '~/lib/url';
+
+interface Props {
+  post: Post;
+}
+
+const { post } = Astro.props;
+const { title, pubDate, category, pinned } = post.data;
+---
+
+<li>
+  <a
+    href={postPath(postSlug(post))}
+    class="group flex items-baseline gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-paper-sunken sm:gap-4"
+  >
+    <time datetime={pubDate.toISOString()} class="shrink-0 meta-text tabular-nums">
+      {formatMonthDay(pubDate)}
+    </time>
+    <span class="min-w-0 flex-1 truncate text-[0.95rem] transition-colors group-hover:text-accent">
+      {title}
+    </span>
+    {
+      pinned && (
+        <span class="hidden shrink-0 rounded-full bg-accent-soft px-1.5 py-0.5 text-[0.68rem] text-accent sm:block">
+          置顶
+        </span>
+      )
+    }
+    <span class="hidden shrink-0 meta-text sm:block">{category}</span>
+  </a>
+</li>

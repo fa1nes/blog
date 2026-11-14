@@ -1,0 +1,50 @@
+---
+import { site } from '~/site.config';
+import BaseHead from '~/components/BaseHead.astro';
+import Header from '~/components/Header.astro';
+import Footer from '~/components/Footer.astro';
+import FloatDock from '~/components/FloatDock.astro';
+import Analytics from '~/components/Analytics.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string;
+  type?: 'website' | 'article';
+  publishedTime?: Date;
+  modifiedTime?: Date;
+  tags?: string[];
+  /** 文章分类，仅文章页使用 */
+  category?: string;
+  /** 正文字数，仅文章页使用 */
+  wordCount?: number;
+  /** 预计阅读分钟数，仅文章页使用 */
+  readingMinutes?: number;
+  noindex?: boolean;
+}
+---
+
+<!doctype html>
+<html lang={site.lang}>
+  <head>
+    <BaseHead {...Astro.props} />
+  </head>
+  <body class="flex min-h-svh flex-col bg-paper text-ink">
+    <a
+      href="#main"
+      class="sr-only rounded-full border border-line bg-paper px-4 py-2 focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60]"
+    >
+      跳到主要内容
+    </a>
+
+    <Header />
+
+    <main id="main" class="relative flex-1">
+      <slot />
+    </main>
+
+    <FloatDock />
+    <Footer />
+    <Analytics />
+  </body>
+</html>

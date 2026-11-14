@@ -1,0 +1,37 @@
+---
+import { getListedPosts } from '~/lib/posts';
+import { getNotes } from '~/lib/notes';
+import { collectAllTags } from '~/lib/tags';
+import { tagPath } from '~/lib/url';
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+
+const tags = collectAllTags(await getListedPosts(), await getNotes());
+---
+
+<BaseLayout title="标签" description="按关键词浏览这个博客的文章与动态。">
+  <div class="mx-auto max-w-page px-5 py-10 sm:px-8 sm:py-12">
+    <PageHeader
+      title="标签"
+      description="标签比分类更细，文章和动态都可以有多个标签。"
+      meta={`共 ${tags.length} 个`}
+    />
+
+    {
+      tags.length > 0 ? (
+        <div class="mt-7 flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <a href={tagPath(tag.name)} class="tag-chip tag-chip-lg">
+              #{tag.name}
+              <span class="ml-0.5 rounded-full bg-paper px-1.5 text-[0.7rem] tabular-nums">
+                {tag.total}
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : (
+        <p class="mt-7 text-ink-soft">还没有任何标签。</p>
+      )
+    }
+  </div>
+</BaseLayout>

@@ -1,0 +1,33 @@
+---
+import BaseLayout from '~/layouts/BaseLayout.astro';
+import PageHeader from '~/components/PageHeader.astro';
+import Comments from '~/components/Comments.astro';
+import Icon from '~/components/Icon.astro';
+
+// 留言有两种去处：文章内的反馈走 Issue，申请友链也一样。这里把规则先说清楚，
+// 免得读者点进去才发现要登录 GitHub。
+const notes = [
+  '分享读后感、指出文章里的错误、申请友链，或者只是打个招呼。',
+  '留言用 GitHub 账号登录后发布，内容会公开显示在仓库的 Discussions 里。',
+  '涉及私人内容或账号问题，请改用邮件或 GitHub 私信，不要贴在公开页面。',
+];
+---
+
+<BaseLayout title="留言板" description="有什么想说的，都可以留在这里。">
+  <div class="mx-auto max-w-page px-5 py-10 sm:px-8 sm:py-12">
+    <PageHeader title="留言板" description="有什么想说的，都可以留在这里。" />
+
+    <ul class="mt-6 flex flex-col gap-2.5">
+      {
+        notes.map((note) => (
+          <li class="flex gap-2.5 text-[0.92rem] leading-relaxed text-ink-soft">
+            <Icon name="check" size={15} class="mt-1 shrink-0 text-accent/70" />
+            <span>{note}</span>
+          </li>
+        ))
+      }
+    </ul>
+
+    <Comments title="留言板" heading={false} />
+  </div>
+</BaseLayout>

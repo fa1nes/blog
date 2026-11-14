@@ -1,0 +1,13 @@
+{
+  "name": "fa1nes-blog-cms-auth",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-14",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // 允许发起登录的站点，逗号分隔；留空表示不限制（state 仍有签名保护）。
+    // 同一份博客可能在 GitHub Pages 和 Cloudflare Pages 两处跑，两个域名都要列上。
+    "ALLOWED_ORIGINS": "https://fa1nes.github.io,https://fa1nes-blog.pages.dev"
+  }
+}

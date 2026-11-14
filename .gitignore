@@ -1,0 +1,60 @@
+# 构建产物
+dist/
+.output/
+.vercel/
+.netlify/
+# 构建时按文章生成的分享图
+public/og/
+
+# Astro 生成的类型与缓存
+.astro/
+
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 环境变量
+.env*
+!.env.example
+
+# 日志
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# 本地调试产物
+.playwright-mcp/
+.shots/
+*.local
+
+# 内容目录里的临时文件：点号开头，构建时被忽略，也不该进版本库；
+# 只放行用来占位的 .gitkeep，空目录才能跟着仓库走
+src/content/**/.[!.]*
+!src/content/**/.gitkeep
+
+# 本地工具目录，与站点内容无关
+.claude/
+.spec-workflow/
+.serena/
+.workbuddy/
+
+# 文章与图片来自私有内容仓库，构建时由 scripts/fetch-content.mjs 拉取，
+# 本地生成、不进版本库（只保留占位文件维持目录结构）
+src/content/posts/*
+!src/content/posts/.gitkeep
+src/content/notes/*
+!src/content/notes/.gitkeep
+src/content/friends/*
+!src/content/friends/.gitkeep
+src/content/pages/*
+!src/content/pages/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep
