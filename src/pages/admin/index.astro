@@ -704,6 +704,16 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
         }
       };
 
+      /** 挂一个脚本，成功走 onload，失败走 onerror */
+      const loadScript = (src: string) =>
+        new Promise<HTMLScriptElement>((resolve, reject) => {
+          const element = document.createElement('script');
+          element.src = src;
+          element.onload = () => resolve(element);
+          element.onerror = () => reject(new Error('脚本请求失败'));
+          document.head.append(element);
+        });
+
       const startCms = async () => {
         if (!root || !loading || !heading || !message || !spinner || !retry) return;
 
@@ -718,50 +728,52 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
 
         // CDN 脚本默认自动初始化；手动挂载才能等待失败并传入本次构建的站点地址。
         cmsWindow.CMS_MANUAL_INIT = true;
-        const script = document.createElement('script');
-        script.src = document.body.dataset.cmsScriptUrl ?? '';
+        const baseSrc = document.body.dataset.cmsScriptUrl ?? '';
         let stage: 'load' | 'init' = 'load';
+        let lastError: unknown = null;
 
-        try {
-          await withTimeout(new Promise<void>((resolve, reject) => {
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error('CMS script unavailable'));
-            document.head.append(script);
-          }));
+        // 大脚本在弱网或旧设备上容易只下到一半（表现为脚本「加载成功」但里面什么都没执行）。
+        // 失败后带一个新参数再取一次，可以绕开半截缓存；两次都不行才降级。
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          const src = attempt === 1 ? baseSrc : `${baseSrc}?retry=${Date.now()}`;
+          let script: HTMLScriptElement | null = null;
+          stage = 'load';
+          try {
+            script = await withTimeout(loadScript(src));
+            stage = 'init';
+            if (typeof cmsWindow.CMS?.init !== 'function') throw new Error('CMS API unavailable');
+            await withTimeout(cmsWindow.CMS.init({
+              config: {
+                site_url: document.body.dataset.siteUrl ?? '',
+                display_url: document.body.dataset.siteUrl ?? '',
+                app_title: document.body.dataset.appTitle ?? '',
+                logo: { src: document.body.dataset.logoUrl ?? '' },
+              },
+            }));
 
-          stage = 'init';
-          if (typeof cmsWindow.CMS?.init !== 'function') throw new Error('CMS API unavailable');
-          await withTimeout(cmsWindow.CMS.init({
-            config: {
-              site_url: document.body.dataset.siteUrl ?? '',
-              display_url: document.body.dataset.siteUrl ?? '',
-              app_title: document.body.dataset.appTitle ?? '',
-              logo: { src: document.body.dataset.logoUrl ?? '' },
-            },
-          }));
-
-          // init 只承诺应用已挂载；后续配置与登录错误由 CMS 展示，顶部保留恢复入口。
-          loading.hidden = true;
-          root.hidden = false;
-        } catch (error) {
-          script.remove();
-          root.hidden = true;
-          spinner.hidden = true;
-          const reason = error instanceof Error && error.message ? error.message : '';
-          const detail = [reason, ...captured].filter(Boolean).join(' / ');
-          // 不管失败在哪个阶段，都直接给一条能用的路，而不是一个死胡同
-          showLegacy(
-            stage === 'load' ? '后台资源没能加载' : '这台设备跑不起完整后台',
-            stage === 'load'
-              ? '完整后台的脚本没有取到。可能是网络被挡了，也可能是脚本太大在弱网下中断。可以直接用极简后台写作。'
-              : '完整后台初始化时出错了。常见原因有三个：浏览器缺少它依赖的某个能力、在无痕/隐私窗口里被禁用了本地存储、或者页面是旧缓存。先试「重新加载完整后台」；还不行就用极简后台，功能一样能发文章。',
-            detail,
-          );
-          // CMS.init 每页只执行一次，重试必须重载页面，不能再次调用 init。
-        } finally {
-          script.onload = null;
-          script.onerror = null;
+            // init 只承诺应用已挂载；后续配置与登录错误由 CMS 展示，顶部保留恢复入口。
+            loading.hidden = true;
+            root.hidden = false;
+            return;
+          } catch (error) {
+            lastError = error;
+            script?.remove();
+            // 第二次也失败就降级，不再重试
+            if (attempt === 2) break;
+          }
         }
+
+        root.hidden = true;
+        spinner.hidden = true;
+        const reason = lastError instanceof Error ? lastError.message : '';
+        const detail = [reason, ...captured].filter(Boolean).join(' / ');
+        showLegacy(
+          stage === 'load' ? '后台资源没能加载' : '这台设备跑不起完整后台',
+          stage === 'load'
+            ? '完整后台的脚本两次都没取到。可能是网络被挡了，或脚本太大在弱网下中断。可以直接用极简后台写作。'
+            : '完整后台重试两次都没能启动。常见原因：浏览器缺少它依赖的能力、无痕/隐私窗口禁用了本地存储、或设备内存不足。极简后台一样能发文章。',
+          detail,
+        );
       };
 
       void startCms();
