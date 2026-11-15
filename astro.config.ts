@@ -36,6 +36,9 @@ function normalizeBasePath(value: string | undefined): string {
  */
 const isCloudflareBuild = Boolean(process.env.CF_PAGES || process.env.CF_WORKERS_CI);
 
+/** 统计表格列数时只关心标签名和子节点，避免引入完整的 hast 类型 */
+type SimpleHastNode = { tagName?: string; children?: SimpleHastNode[] };
+
 const BASE_PATH = normalizeBasePath(
   process.env.BASE_PATH ?? (isCloudflareBuild ? '/' : site.base),
 );
@@ -80,7 +83,8 @@ export default defineConfig({
         element: {
           filter: ['table'],
           visit(node, ctx) {
-            const sections = Array.isArray(node.children) ? node.children : [];
+            const table = node as unknown as SimpleHastNode;
+            const sections = table.children ?? [];
             const head = sections.find((child) => child.tagName === 'thead') ?? sections[0];
             const row = (head?.children ?? []).find((child) => child.tagName === 'tr');
             const columns = (row?.children ?? []).filter(
