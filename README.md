@@ -166,6 +166,7 @@ npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑�
 | 文章 | `src/content/posts/` | 新建、编辑、删除；草稿、置顶开关；正文里插入图片 |
 | 动态 | `src/content/notes/` | 新建、编辑、删除短内容 |
 | 友情链接 | `src/content/friends/` | 增删改友链，填头像地址 |
+| 链接 | `src/content/social/` | 增删改页脚 / 首页 / 关于页的社交入口，每条单独开关 |
 | 页面 | `src/content/pages/` | 编辑「关于」页等独立页面 |
 
 保存会直接提交到内容仓库，两个站点在推送后自动重新构建。图片上传到 `public/uploads/`，正文用 `/uploads/名字` 引用。
@@ -373,29 +374,24 @@ export const analytics = { provider, cloudflareToken, goatcounterCode, showCount
 
 字体放在 `src/` 而不是 `public/`，这样 Vite 会打包并重写 URL，部署到子路径时不会 404。
 
-### 社交链接与开关
+### 社交链接（后台可改）
 
-页脚、首页、关于页的社交入口都来自 `src/site.config.ts` 的 `social` 数组，**一条配置三处生效**：
+页脚、首页、关于页的社交入口**不在代码里**，而是内容仓库的 `src/content/social/` 下，一个链接一个文件：
 
-```ts
-export const social: SocialLink[] = [
-  { label: 'GitHub', href: 'https://github.com/fa1nes', icon: 'github', enabled: true },
-
-  // 需要哪个就取消注释并改地址
-  // { label: 'X', href: 'https://x.com/yourname', icon: 'x', enabled: true },
-  // { label: '微博', href: 'https://weibo.com/u/0000000000', icon: 'weibo', enabled: true },
-  // { label: '邮箱', href: 'mailto:you@example.com', icon: 'mail', enabled: true },
-];
-
-/** 页面上真正渲染的列表：enabled 为 false 的会被过滤掉 */
-export const visibleSocial: SocialLink[] = social.filter((item) => item.enabled !== false);
+```yaml
+---
+label: GitHub
+href: https://github.com/you
+icon: github      # 取自 Icon.astro：github / x / weibo / zhihu / bilibili / telegram / juejin / mail / link
+enabled: false    # 关掉但不删，随时能再打开
+order: 10         # 数字小的排前面
+---
 ```
 
-- **加一个入口**：取消注释对应行，改 `href`，`icon` 用 `IconName` 里的名字
-- **临时隐藏**：`enabled: false`，链接留在配置里，想恢复改回来就行
-- **全部关掉**：把数组清空，页脚那一行社交图标就不显示了
+打开 `/admin/` → 「链接」就能增删改和开关，不用动仓库里的代码。
 
-想要新的平台图标，见下一节。
+只有当**这个目录完全不存在**时，才会回退到 `src/site.config.ts` 里的 `social` 数组（默认是空的）。
+这样 fork 下来不会带出任何链接，也不会因为某个入口被关掉就误判成"没有配置"。
 
 ### 换分享图
 

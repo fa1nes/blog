@@ -28,7 +28,7 @@ const repo = process.env.CONTENT_REPO ?? 'fa1nes/blog-content';
 const ref = process.env.CONTENT_REPO_REF ?? 'main';
 const token = process.env.CONTENT_REPO_TOKEN?.trim();
 
-const contentDirs = ['posts', 'notes', 'friends', 'pages'];
+const contentDirs = ['posts', 'notes', 'friends', 'pages', 'social'];
 const targets = [
   ...contentDirs.map((dir) => path.join(root, 'src', 'content', dir)),
   path.join(root, 'public', 'uploads'),

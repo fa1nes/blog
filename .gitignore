@@ -56,6 +56,8 @@ src/content/friends/*
 !src/content/friends/.gitkeep
 src/content/pages/*
 !src/content/pages/.gitkeep
+src/content/social/*
+!src/content/social/.gitkeep
 public/uploads/*
 !public/uploads/.gitkeep
 

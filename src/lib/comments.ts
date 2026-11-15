@@ -17,14 +17,3 @@ export const commentsReady =
   Boolean(commentsRepository) &&
   filled(comments.giscus.repoId) &&
   filled(comments.giscus.categoryId);
-
-export function githubIssueUrl(title: string, pageURL: string): string | undefined {
-  if (!commentsRepository) return undefined;
-
-  const url = new URL(`https://github.com/${commentsRepository}/issues/new`);
-  url.search = new URLSearchParams({
-    title: `反馈：${title}`,
-    body: `页面：${pageURL}\n\n留言或问题描述：\n\n`,
-  }).toString();
-  return url.href;
-}

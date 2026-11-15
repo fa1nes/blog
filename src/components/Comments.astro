@@ -1,6 +1,6 @@
 ---
 import { comments, site } from '~/site.config';
-import { commentsReady, commentsRepository, githubIssueUrl } from '~/lib/comments';
+import { commentsReady, commentsRepository } from '~/lib/comments';
 
 interface Props {
   title?: string;
@@ -10,7 +10,6 @@ interface Props {
 
 const { title = '页面反馈', heading = true } = Astro.props;
 const pageURL = new URL(Astro.url.pathname, Astro.site ?? site.url).href;
-const issueURL = githubIssueUrl(title, pageURL);
 const giscus = comments.giscus;
 ---
 
@@ -51,49 +50,17 @@ const giscus = comments.giscus;
   {
     /* 评论区接通后 GitHub 入口先藏起来；giscus 报错时（比如应用没装）再露出来，
        这样访客看到的是一个能用的入口，而不是一个报错的 iframe。 */
-    !commentsReady &&
-      (issueURL ? (
-        <div class="max-w-[38rem] rounded-xl border border-line bg-paper-sunken px-4 py-4">
-          <p class="text-[0.9rem] leading-relaxed text-ink-soft">
-            想说的、想纠错的、想交换友链的，都可以直接在 GitHub 说。页面地址会自动附在留言里，
-            回复也会留在同一个地方。
-          </p>
-          <a
-            href={issueURL}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="mt-3 inline-flex rounded-full border border-accent/30 bg-paper px-4 py-2 text-sm font-medium text-accent transition-colors hover:border-accent"
-          >
-            在 GitHub 留言 / 反馈
-          </a>
-          <p class="mt-2 meta-text">需要登录 GitHub；提交后会公开显示在博客仓库的问题列表中。</p>
-        </div>
-      ) : (
-        <p class="meta-text">留言入口暂时不可用，感谢你的阅读与支持。</p>
-      ))
+    !commentsReady && (
+      <p class="meta-text">留言入口暂时不可用，感谢你的阅读与支持。</p>
+    )
   }
 
   {
-    /* 评论接管成功前的备用入口：默认隐藏，只在 giscus 失败时揭开 */
-    commentsReady && issueURL && (
-      <div
-        class="max-w-[38rem] rounded-xl border border-line bg-paper-sunken px-4 py-4"
-        data-giscus-fallback
-        hidden
-      >
-        <p class="text-[0.9rem] leading-relaxed text-ink-soft">
-          在线评论没能加载出来，可以直接去 GitHub 留言：页面地址会自动附上，回复也留在同一个地方。
-        </p>
-        <a
-          href={issueURL}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="mt-3 inline-flex rounded-full border border-accent/30 bg-paper px-4 py-2 text-sm font-medium text-accent transition-colors hover:border-accent"
-        >
-          在 GitHub 留言 / 反馈
-        </a>
-        <p class="mt-2 meta-text">需要登录 GitHub；提交后会公开显示在博客仓库的问题列表中。</p>
-      </div>
+    /* 评论接管成功前的备用提示：默认隐藏，只在 giscus 失败时揭开 */
+    commentsReady && (
+      <p class="meta-text" data-giscus-fallback hidden>
+        在线评论没能加载出来，刷新一次或稍后再试。
+      </p>
     )
   }
 </section>

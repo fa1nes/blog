@@ -305,7 +305,8 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
         'use strict';
 
         var CONFIG = {
-          repo: 'fa1nes/blog-content',
+          // 仓库名不写死在这里：页面源码是公开的，只从 config.yml 读
+          repo: '',
           branch: 'main',
           authBase: '',
           mediaFolder: 'public/uploads'
@@ -356,6 +357,25 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
               { key: 'description', label: '一句话介绍', type: 'text' },
               { key: 'avatar', label: '头像地址', type: 'text' },
               { key: 'order', label: '排序', type: 'text', hint: '数字越小越靠前' }
+            ]
+          },
+          {
+            id: 'social',
+            label: '链接',
+            dir: 'src/content/social',
+            ext: 'md',
+            body: false,
+            fields: [
+              { key: 'label', label: '名称', type: 'text', required: true },
+              { key: 'href', label: '地址', type: 'text', required: true, hint: 'https:// 开头，或 mailto:you@example.com' },
+              {
+                key: 'icon',
+                label: '图标',
+                type: 'select',
+                options: ['github', 'x', 'weibo', 'zhihu', 'bilibili', 'telegram', 'juejin', 'mail', 'link']
+              },
+              { key: 'enabled', label: '在页面上显示', type: 'bool' },
+              { key: 'order', label: '排序', type: 'text', hint: '数字小的排前面' }
             ]
           },
           {
@@ -689,6 +709,15 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
           if (field.type === 'textarea-short') {
             input = document.createElement('textarea');
             input.className = 'short';
+          } else if (field.type === 'select') {
+            input = document.createElement('select');
+            var options = field.options || [];
+            for (var oi = 0; oi < options.length; oi++) {
+              var option = document.createElement('option');
+              option.value = options[oi];
+              option.textContent = options[oi];
+              input.appendChild(option);
+            }
           } else {
             input = document.createElement('input');
             input.type = field.type === 'date' ? 'date' : 'text';

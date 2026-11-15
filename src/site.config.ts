@@ -85,8 +85,8 @@ export const author = {
   // 页面展示用的是 160px 的 WebP（约 9KB）；原图 public/avatar.png 只作 og 与派生源，
   // 换头像时替换 avatar.png 再跑一次 npm run og。
   avatar: '/avatar.webp',
-  /** 个人主页，留空则不生成链接 */
-  url: 'https://github.com/fa1nes',
+  /** 个人主页，留空则不生成链接（不想暴露 GitHub 账号就留空） */
+  url: '',
   /** 邮箱，用于 SEO 结构化数据（可留空） */
   email: '',
 } as const;
@@ -112,16 +112,11 @@ export const nav: NavItem[] = [
  * 页脚、首页、关于页都读这里，改一处三处同时生效。
  */
 export const social: SocialLink[] = [
-  { label: 'GitHub', href: 'https://github.com/fa1nes', icon: 'github', enabled: true },
-
-  // 下面是常见入口，需要哪个就取消注释并填上地址
-  // { label: 'X', href: 'https://x.com/yourname', icon: 'x', enabled: true },
-  // { label: '微博', href: 'https://weibo.com/u/0000000000', icon: 'weibo', enabled: true },
-  // { label: '知乎', href: 'https://www.zhihu.com/people/yourname', icon: 'zhihu', enabled: true },
-  // { label: '哔哩哔哩', href: 'https://space.bilibili.com/000000', icon: 'bilibili', enabled: true },
-  // { label: 'Telegram', href: 'https://t.me/yourname', icon: 'telegram', enabled: true },
-  // { label: '掘金', href: 'https://juejin.cn/user/000000', icon: 'juejin', enabled: true },
-  // { label: '邮箱', href: 'mailto:you@example.com', icon: 'mail', enabled: true },
+  // 默认留空。想显示社交入口，在网页后台「链接」里新建一条即可
+  // （文件落在内容仓库的 src/content/social/，不进这个公开仓库）。
+  //
+  // 如果内容仓库里没有这个目录，才会回退到这里，格式：
+  // { label: 'GitHub', href: 'https://github.com/you', icon: 'github', enabled: true },
 ];
 
 /** 页面上实际渲染的社交入口（过滤掉 enabled: false 的） */

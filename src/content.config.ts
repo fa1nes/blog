@@ -1,4 +1,4 @@
-import { defineCollection } from 'astro:content';
+import { defineCollection, z } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { createPostSchema, pageSchema, noteSchema, friendSchema } from './lib/content-schemas.js';
 
@@ -62,4 +62,25 @@ const friends = defineCollection({
   schema: friendSchema,
 });
 
-export const collections = { posts, pages, notes, friends };
+/**
+ * 社交链接。每行一个文件，放在 src/content/social/ 下，
+ * 这样网页后台就能直接开关和改地址，不用动 site.config.ts。
+ * 目录为空时回退到 site.config.ts 里的默认值。
+ */
+const social = defineCollection({
+  loader: glob({
+    base: './src/content/social',
+    pattern: CONTENT_PATTERN,
+  }),
+  schema: z.object({
+    label: z.string(),
+    href: z.string(),
+    /** 图标名，取自 Icon.astro 的 ICONS；填错则回退成通用链接图标 */
+    icon: z.string().default('link'),
+    /** 是否显示。关掉不删，方便随时再打开 */
+    enabled: z.boolean().default(true),
+    order: z.number().default(0),
+  }),
+});
+
+export const collections = { posts, pages, notes, friends, social };

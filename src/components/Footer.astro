@@ -1,5 +1,8 @@
 ---
-import { site, author, visibleSocial, footer, nav, analytics } from '~/site.config';
+import { site, author, footer, nav, analytics } from '~/site.config';
+import { getSocialLinks } from '~/lib/social';
+
+const socialLinks = await getSocialLinks();
 import { href } from '~/lib/url';
 import Icon from '~/components/Icon.astro';
 
@@ -66,7 +69,7 @@ const showCounters = analytics.provider === 'vercount' && analytics.showCounters
 
       <nav class="flex items-center gap-1" aria-label="社交链接">
         {
-          visibleSocial.map((item) => (
+          socialLinks.map((item) => (
             <a
               href={item.href}
               target={item.href.startsWith('http') ? '_blank' : undefined}
