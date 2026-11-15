@@ -12,3 +12,9 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN
+
+# 后台上传的图片：即使是图片，也不让它们获得脚本执行能力
+# （SVG 直接打开会在本站上下文跑脚本；这里再加一层防线，GitHub Pages 不读本文件）
+/uploads/*
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox

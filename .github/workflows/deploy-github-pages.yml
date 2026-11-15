@@ -42,7 +42,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: node_modules
-          key: modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: modules-${{ runner.os }}-${{ hashFiles('package.json', 'package-lock.json') }}
 
       - name: 安装依赖
         if: steps.modules.outputs.cache-hit != 'true'

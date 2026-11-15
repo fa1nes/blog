@@ -442,6 +442,7 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
             if (xhr.status === 401) message = '令牌无效或已过期';
             if (xhr.status === 403) message = '这个令牌没有内容仓库的写入权限';
             if (xhr.status === 404) message = '找不到仓库或文件：' + CONFIG.repo;
+            if (xhr.status === 409) message = '文件已被别处修改，刷新列表后重试';
             if (xhr.status === 422) message = 'GitHub 拒绝了这次提交（文件名可能重复）';
             done(new Error(message));
           };
@@ -518,6 +519,30 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
           for (var i = 0; i < head.length; i++) out.push(head[i]);
           out.push('---');
           return out.join('\n') + '\n\n' + String(body || '').replace(/^\s*\n/, '');
+        }
+
+        /**
+         * 下一个可用的网址编号：文件列表里只有文件名，编号在 frontmatter 里，
+         * 所以要逐个取回来看一眼（文章数量级很小，点「新建」时才发生）。
+         */
+        function suggestNextSlug(done) {
+          var files = state.list || [];
+          if (!files.length) { done(1); return; }
+          var max = 0;
+          var pending = files.length;
+          for (var i = 0; i < files.length; i++) {
+            (function (file) {
+              api('GET', '/repos/' + CONFIG.repo + '/contents/' + file.path + '?ref=' + CONFIG.branch, null, function (err, data) {
+                if (!err && data && data.content) {
+                  var value = parseFront(b64decode(data.content)).fields.slug;
+                  var number = parseInt(String(value == null ? '' : value).replace(/["']/g, ''), 10);
+                  if (!isNaN(number) && number > max) max = number;
+                }
+                pending -= 1;
+                if (pending === 0) done(max + 1);
+              });
+            })(files[i]);
+          }
         }
 
         /* ---------------- 登录 ---------------- */
@@ -739,20 +764,33 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
             var el = $('f_' + field.key);
             if (!el) continue;
             var value = String(values[field.key] == null ? '' : values[field.key]);
-            if (field.type === 'bool') el.checked = value === 'true';
-            else if (field.key === 'tags') el.value = unwrap(value.replace(/^\[|\]$/g, ''));
-            else el.value = unwrap(value);
+            if (field.type === 'bool') {
+              el.checked = value === 'true';
+            } else if (field.key === 'tags') {
+              el.value = unwrap(value.replace(/^\[|\]$/g, ''));
+            } else if (field.type === 'date') {
+              // 只认 YYYY-MM-DD；写了「2026-07-20 10:30」这种带时间的值，
+              // date 输入框会清空，保存时反而把必填的日期删掉
+              var raw = unwrap(value);
+              if (raw && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                el.type = 'text';
+                el.value = raw;
+              } else {
+                el.value = raw;
+              }
+            } else {
+              el.value = unwrap(value);
+            }
           }
 
           if (isNew) {
             var slugInput = $('f_slug');
             if (slugInput && !slugInput.value) {
-              var max = 0;
-              for (var k = 0; k < state.list.length; k++) {
-                var match = state.list[k].name.match(/^(\d+)\./);
-                if (match) max = Math.max(max, parseInt(match[1], 10));
-              }
-              slugInput.value = String(max + 1);
+              slugInput.value = '…';
+              suggestNextSlug(function (next) {
+                // 用户如果已经自己填了，就别覆盖
+                if (!slugInput.value || slugInput.value === '…') slugInput.value = String(next);
+              });
             }
             var dateInput = $('f_pubDate');
             if (dateInput && !dateInput.value) dateInput.value = dateToday();
@@ -796,6 +834,8 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
           if (!current) return;
 
           var values = readForm(collection);
+          // 编号还是占位符时按空处理，交给「留空即用文件名」的逻辑
+          if (values.slug === '…') values.slug = '';
           for (var i = 0; i < collection.fields.length; i++) {
             var field = collection.fields[i];
             if (field.required && !String(values[field.key] || '').trim()) {
@@ -849,15 +889,30 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
           });
         }
 
+        // 只接受位图格式。SVG/HTML 一旦放进 public/ 就是同源文件，
+        // 直接打开会在本站上下文执行脚本，能读走 localStorage 里的令牌。
+        var IMAGE_ALLOWED = /^(\.png|\.jpg|\.jpeg|\.webp|\.gif|\.avif)$/i;
+
         function uploadImage(picker, area) {
           var file = picker.files && picker.files[0];
           if (!file) return;
+          var extMatch = String(file.name).match(/\.[a-z0-9]+$/i);
+          var ext = extMatch ? extMatch[0].toLowerCase() : '';
+          if (!IMAGE_ALLOWED.test(ext)) {
+            toast('只支持 png / jpg / webp / gif / avif，SVG 请先转成位图', true);
+            picker.value = '';
+            return;
+          }
+          if (file.type && file.type.indexOf('image/') !== 0) {
+            toast('这个文件不是图片', true);
+            picker.value = '';
+            return;
+          }
           if (file.size > 8 * 1024 * 1024) { toast('图片请控制在 8MB 以内', true); return; }
           var reader = new FileReader();
           reader.onload = function () {
             var dataUrl = String(reader.result);
             var base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
-            var ext = (file.name.match(/\.[a-z0-9]+$/i) || ['.png'])[0].toLowerCase();
             var fileName = new Date().getTime() + '-' + (safeName(file.name) || 'image') + ext;
             var path = CONFIG.mediaFolder + '/' + fileName;
             toast('上传中…');
