@@ -130,14 +130,8 @@ npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑�
 
 #### 一、网页后台
 
-用表单填写标题、分类、标签、封面，正文用编辑器写，保存后自动提交到仓库并触发部署。
-
-#### 老系统打不开时：极简后台
-
-完整后台的脚本里有正则 lookbehind，属于**语法级**特性，Safari / iOS 16.4 以下连解析都过不去，垫片补不了。
-入口页检测到旧引擎时会直接给出 **`/admin/lite/`** —— 一个只用 ES5 + XMLHttpRequest 写的极简编辑器：
-令牌登录、文章列表、标题/别名/日期/分类/标签/草稿 + Markdown 正文，保存同样提交到内容仓库并触发部署。
-iOS 12、Android 5、微信内置浏览器都能跑。
+后台是站点自带的一个页面：**不加载任何 CMS 框架，不走 CDN，也没有第二套降级页**。
+整页约 40KB，打开就有，iOS 12 / Android 5 / 微信内置浏览器都能用。
 
 地址是**站点地址后面加 `/admin/`**：
 
@@ -149,59 +143,39 @@ iOS 12、Android 5、微信内置浏览器都能跑。
 
 子路径部署时漏掉仓库名会直接 404 —— 后台是站点的一个页面，不在域名根目录。
 
-后台是 [Sveltia CMS](https://sveltiacms.app)，一个从 CDN 加载的单页应用，**不需要数据库，也不需要任何常驻服务**。它由两个文件组成：入口页面 `src/pages/admin/index.astro` 和配置 `public/admin/config.yml`。
-
 > 入口做成 Astro 路由而不是 `public/` 下的静态 HTML，是因为开发服务器不会把 `public/admin/` 解析成目录索引 —— 放 `public/` 时本地访问 `/admin/` 会 404，只能访问 `/admin/index.html`。现在开发和生产的路径一致。
 
-**登录**：后台只支持 GitHub 令牌登录（没有自建 OAuth 代理时，Sveltia 无法直接走「用 GitHub 登录」）。创建一个 fine-grained PAT，只授权当前仓库的 `Contents: Read and write`，粘进登录框即可，令牌只存在浏览器本地。
-
-**打不开怎么办**：
-
-- 页面停在「后台初始化失败」时，提示里会带上真实原因。Sveltia 用到 `Promise.withResolvers`、`Object.groupBy`、`URL.canParse`、`Array.fromAsync`、`Set.prototype.union`、`String.prototype.isWellFormed` 等较新 API；入口页内置了覆盖到 iOS 16.0 的垫片，正常情况下不必再管。
-- CMS 脚本不走 CDN，构建时由 `scripts/fetch-cms.mjs` 下载到 `public/admin/vendor/`（版本与 sha256 写死在脚本里），同源加载，国内网络也不用等 unpkg。
-- 实在打不开，或者不想折腾令牌，直接打开 [github.dev/fa1nes/blog](https://github.dev/fa1nes/blog)：浏览器里就是 VS Code，用 GitHub 账号登录即可编辑、传图、提交，走同一条部署流水线。
-
-**启用前只需要改一处**：把 `public/admin/config.yml` 里的 `repo` 改成你的仓库：
-
-```yaml
-backend:
-  name: github
-  repo: fa1nes/blog   # ← 改成你的仓库
-  branch: main
-```
-
-登录页有三个按钮：
+**登录方式**：
 
 | 方式 | 说明 |
 | --- | --- |
-| **Work with Local Repository** | 直接读写本地文件夹，不需要登录也不需要联网，本地写作用这个最方便（需要 Chrome 或 Edge） |
-| **Sign In Using Access Token** | 粘贴一个 GitHub 个人访问令牌就能用，**不需要架设 OAuth 服务**，适合自己一个人用 |
-| Sign In with GitHub | 标准 OAuth 登录，需要额外部署一个 OAuth 中间服务，多人协作时才有必要 |
+| 使用 GitHub 登录 | 一次点击，弹窗授权后自动回到后台。需要先部署 `workers/cms-auth`，把地址填进 `config.yml` 的 `base_url` |
+| 访问令牌 | 不需要任何服务，粘一次令牌即可。适合自己一个人用，或 OAuth 服务不可用时兜底 |
 
-**用令牌登录的完整步骤**：
+用令牌的步骤：
 
 1. 打开 [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) 建一个细粒度令牌
-2. **Repository access** 选 `Only select repositories`，勾上你的博客仓库
-3. **Permissions → Repository permissions → Contents** 改成 `Read and write`（其余不用动）
-4. 生成后复制令牌（离开页面就看不到了）
-5. 回到后台点 **Sign In Using Access Token**，粘贴进弹窗，点 Sign In
+2. **Repository access** 选 `Only select repositories`，勾上内容仓库
+3. **Permissions → Contents** 设为 `Read and write`，其余不用动
+4. 生成后复制令牌，回后台点「用访问令牌」，粘贴进入
 
-令牌只存在你浏览器的本地存储里，不会提交到仓库。想撤销随时回 GitHub 删掉即可。
+令牌只存在你浏览器的本地存储里，不会提交到仓库；想撤销随时回 GitHub 删掉。
 
-> 用经典令牌（classic token）也行，勾 `repo` 这个 scope。但细粒度令牌能限定到单个仓库，更安全。
-
-**后台能管理的内容**：
+**能管理的内容**：
 
 | 集合 | 对应目录 | 能做什么 |
 | --- | --- | --- |
-| 文章 | `src/content/posts/` | 新建、编辑、删除，含封面上传与草稿开关 |
+| 文章 | `src/content/posts/` | 新建、编辑、删除；草稿、置顶开关；正文里插入图片 |
 | 动态 | `src/content/notes/` | 新建、编辑、删除短内容 |
-| 友情链接 | `src/content/friends/` | 增删改友链，可上传头像 |
-| 独立页面 | `src/content/pages/` | 编辑「关于」页（不允许新建） |
+| 友情链接 | `src/content/friends/` | 增删改友链，填头像地址 |
+| 页面 | `src/content/pages/` | 编辑「关于」页等独立页面 |
 
-站点标题、导航、社交链接这类配置在 `src/site.config.ts` 里，属于代码不走后台，改完需要提交一次。
+保存会直接提交到内容仓库，两个站点在推送后自动重新构建。图片上传到 `public/uploads/`，正文用 `/uploads/名字` 引用。
 
-> 后台的字段定义和 `src/content.config.ts` 里的 schema 是一一对应的。以后往 schema 加字段时，记得同步改 `config.yml`，否则后台存出来的内容会在构建时报错。
+> 后台字段和 `src/content.config.ts` 的 schema 一一对应。给 schema 加字段时，同时改 `src/pages/admin/index.astro` 里的 `COLLECTIONS`，
+> 否则新字段在后台不可见（已有内容不会丢，后台会原样保留它不认识的 frontmatter）。
+
+站点标题、导航、社交链接这类配置在 `src/site.config.ts` 里，属于代码不走后台，改完提交一次即可。
 
 #### 二、命令行
 
@@ -451,6 +425,30 @@ export const analytics = { provider, cloudflareToken, goatcounterCode, showCount
 
 字体放在 `src/` 而不是 `public/`，这样 Vite 会打包并重写 URL，部署到子路径时不会 404。
 
+### 社交链接与开关
+
+页脚、首页、关于页的社交入口都来自 `src/site.config.ts` 的 `social` 数组，**一条配置三处生效**：
+
+```ts
+export const social: SocialLink[] = [
+  { label: 'GitHub', href: 'https://github.com/fa1nes', icon: 'github', enabled: true },
+
+  // 需要哪个就取消注释并改地址
+  // { label: 'X', href: 'https://x.com/yourname', icon: 'x', enabled: true },
+  // { label: '微博', href: 'https://weibo.com/u/0000000000', icon: 'weibo', enabled: true },
+  // { label: '邮箱', href: 'mailto:you@example.com', icon: 'mail', enabled: true },
+];
+
+/** 页面上真正渲染的列表：enabled 为 false 的会被过滤掉 */
+export const visibleSocial: SocialLink[] = social.filter((item) => item.enabled !== false);
+```
+
+- **加一个入口**：取消注释对应行，改 `href`，`icon` 用 `IconName` 里的名字
+- **临时隐藏**：`enabled: false`，链接留在配置里，想恢复改回来就行
+- **全部关掉**：把数组清空，页脚那一行社交图标就不显示了
+
+想要新的平台图标，见下一节。
+
 ### 换分享图
 
 `public/og-default.png` 为 1200×630 的默认分享图，内容与 `src/site.config.ts` 中的站名、副标题及完整站点路径一致。`npm run og` 会重新生成这张图及 `og-default.svg`，同时从 `brand-icon.png` 生成 32×32 的 `favicon.png`、180×180 的 `apple-touch-icon.png` 和 192/512 的 `icon-192.png`、`icon-512.png`；默认分享图右侧用 `avatar.png`。改过图标、头像或站名后跑一次即可。
@@ -505,7 +503,7 @@ export const comments = {
 | 能力 | 依赖什么 | 换到 CF Pages 后 |
 | --- | --- | --- |
 | 评论 Giscus | 浏览器直连 giscus.app，数据在 GitHub Discussions | 照常工作 |
-| 后台 Sveltia | 浏览器加载 CMS + 调 GitHub API；OAuth 走 `workers/cms-auth` | 照常工作，后台地址变成 `https://<项目>.pages.dev/admin/` |
+| 后台 | 自带的一个轻量页面（无第三方依赖），调 GitHub API；OAuth 走 `workers/cms-auth` | 照常工作，地址变成 `https://<项目>.pages.dev/admin/` |
 | 访问统计 vercount | 浏览器直连统计脚本 | 照常工作，计数按 hostname 分开，两个域名各算一份 |
 
 有两处要跟着改：
@@ -655,7 +653,7 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 | Cloudflare Pages | ✅ 照常构建，**站点本身仍然公开** |
 | GitHub Pages | ❌ Free 计划不支持从私有仓库发布（需 Pro / Team / Enterprise），而且即便发出来站点也是公开的 |
 | Giscus 评论 | ❌ 失效。它要求仓库公开，匿名访客才读得到 Discussions |
-| Sveltia 后台 | ✅ 令牌或 OAuth 有仓库权限就能用 |
+| 网页后台 | ✅ 令牌或 OAuth 有仓库权限就能用 |
 | Actions 分钟数 | ⚠️ 私有仓库计费（免费 2000 分钟/月），公开仓库不限量 |
 | 别人 fork | ❌ 私有仓库不能被公开 fork |
 
@@ -741,7 +739,7 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 | 选项卡 / 终端窗口 | MDX 组件，选项卡支持键盘操作，无 JS 时优雅降级 |
 | 分类 / 标签 / 归档 | 构建时统计生成；标签横跨文章与动态 |
 | 全文搜索 | Pagefind，构建时生成分块索引，支持中文分词 |
-| 网页后台 | Sveltia CMS，浏览器里写作与传图，无需数据库和常驻服务 |
+| 网页后台 | 自带的轻量页面（约 40KB），写作、传图、四个集合，无需数据库与任何外部服务 |
 | 命令行 | 新建文章、通过 GitHub API 直接发布 |
 | RSS / SEO | 文章 `/rss.xml`、动态 `/notes/rss.xml`、canonical、Open Graph、JSON-LD（含面包屑与站内搜索入口）、sitemap、robots.txt |
 | 站点图标 | 一个 SVG 源派生 favicon、Apple Touch Icon、Android 192/512 与 web manifest，地址栏颜色跟随主题 |
@@ -760,7 +758,6 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 - **[Tailwind CSS 4](https://tailwindcss.com)** —— CSS-first 配置，语义化颜色令牌
 - **[Pagefind](https://pagefind.app)** —— 构建时生成的静态搜索索引
 - **[Shiki](https://shiki.style)** —— 与 VS Code 同源的语法高亮
-- **[Sveltia CMS](https://sveltiacms.app)** —— 从 CDN 加载的 Git-based 网页后台
 - **[Giscus](https://giscus.app)** —— 基于 GitHub Discussions 的评论
 
 有意没有引入的东西：`@tailwindcss/typography`（文章排版是针对中文手写的）、任何 remark / rehype 插件（Astro 7 内置的 Sätteri 处理器已提供 GFM、智能标点和标题锚点）、任何前端框架。
@@ -769,9 +766,9 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 
 ### 后台在旧 iPad / 老 Android 上打不开
 
-完整后台用的 Sveltia CMS 依赖正则 lookbehind 等语法，Safari 16.4（iOS 16.4）以上才支持，这类语法问题垫片解决不了。
-入口页会先探测引擎能力：不支持就显示「进入极简后台」，也可以直接访问 `/admin/lite/`。
-极简后台只用 ES5 语法与 XMLHttpRequest，不依赖 fetch / Promise / 箭头函数，老系统也能改文章。
+后台是一个自包含页面，只用 ES5 语法与 XMLHttpRequest，不依赖 fetch / Promise / 箭头函数 / 正则 lookbehind，
+也没有任何第三方脚本。iOS 12、Android 5、微信内置浏览器都能打开。
+真遇到打不开的情况，可以改用 [github.dev](https://github.dev/fa1nes/blog-content) 直接编辑文件。
 
 **搜索没有结果？**
 索引在构建时生成。本地开发前先跑一次 `npm run build`。部署后如果搜索报错，检查 `dist/pagefind/` 是否被正确上传。
@@ -818,7 +815,7 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 
 - 视觉风格参考了 [NIE-Higan-Blog](https://github.com/3257085208/NIE-Higan-Blog) 的清爽配色思路（代码为本项目独立实现）
 - 拉丁字体是 [Nunito](https://fonts.google.com/specimen/Nunito)，采用 SIL Open Font License 1.1
-- 搜索、后台、评论分别由 [Pagefind](https://pagefind.app)、[Sveltia CMS](https://sveltiacms.app)、[Giscus](https://giscus.app) 提供
+- 搜索、评论分别由 [Pagefind](https://pagefind.app)、[Giscus](https://giscus.app) 提供；后台是本项目自己的一个页面
 
 ## 许可证
 

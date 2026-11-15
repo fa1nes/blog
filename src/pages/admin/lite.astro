@@ -1,0 +1,20 @@
+---
+// 旧版「极简后台」的地址，后台合并后指向唯一入口，避免旧书签与外部链接 404。
+import { href } from '~/lib/url';
+
+const target = href('/admin/');
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta http-equiv="refresh" content={`0; url=${target}`} />
+    <link rel="canonical" href={target} />
+    <title>正在转到内容工作台</title>
+  </head>
+  <body>
+    <p>后台已经合并为一个页面，正在跳转… 如果没有自动跳转，<a href={target}>点这里</a>。</p>
+  </body>
+</html>

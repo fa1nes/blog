@@ -8,10 +8,10 @@
     "node": ">=22.18.0"
   },
   "scripts": {
-    "dev": "node scripts/fetch-cms.mjs && astro dev",
+    "dev": "astro dev",
     "content:pull": "node scripts/fetch-content.mjs",
     "start": "astro dev",
-    "build": "node scripts/fetch-cms.mjs && node scripts/fetch-content.mjs && node scripts/post-og.mjs && astro build && node scripts/check-build.mjs",
+    "build": "node scripts/fetch-content.mjs && node scripts/post-og.mjs && astro build && node scripts/check-build.mjs",
     "preview": "astro preview",
     "check": "npm test && astro check",
     "check:build": "node scripts/check-build.mjs",

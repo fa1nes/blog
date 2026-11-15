@@ -1,5 +1,5 @@
 ---
-import { site, author, content, social } from '~/site.config';
+import { site, author, content, visibleSocial } from '~/site.config';
 import { getListedPosts, collectCategories } from '~/lib/posts';
 import { getNotes } from '~/lib/notes';
 import { collectAllTags } from '~/lib/tags';
@@ -54,13 +54,13 @@ const overview = [
           </span>
         </div>
 
-        {social.length > 0 && (
+        {visibleSocial.length > 0 && (
           <span class="hidden h-7 w-px bg-line sm:block" aria-hidden="true" />
         )}
 
         <div class="flex items-center gap-0.5">
           {
-            social.map((item) => (
+            visibleSocial.map((item) => (
               <a
                 href={item.href}
                 target={item.href.startsWith('http') ? '_blank' : undefined}

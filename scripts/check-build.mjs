@@ -7,12 +7,11 @@ import { parse } from 'parse5';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 // 后台 CMS 版本在下载脚本里锁定，验收时与 config.yml 的 schema 版本对齐
-const cmsVersion = (await readFile(join(root, 'scripts', 'fetch-cms.mjs'), 'utf8')).match(/const VERSION = '([\d.]+)'/)?.[1];
 const required = [
   'index.html', '404.html', 'posts/index.html', 'notes/index.html',
   'tags/index.html', 'categories/index.html', 'archive/index.html',
   'friends/index.html', 'guestbook/index.html', 'about/index.html',
-  'search/index.html', 'admin/index.html', 'admin/config.yml', 'admin/lite/index.html',
+  'search/index.html', 'admin/index.html', 'admin/config.yml',
   'rss.xml', 'notes/rss.xml', 'robots.txt', 'pagefind/pagefind.js',
   'favicon.png', 'icon-64.png', 'avatar.png', 'brand-icon.png', 'apple-touch-icon.png',
   'site.webmanifest', 'icon-192.png', 'icon-512.png',
@@ -198,18 +197,15 @@ async function checkBuild() {
     if (file === 'admin/index.html') {
       const body = nodes.find(({ tag }) => tag === 'body');
       if (body?.attrs['data-site-url'] !== siteRoot.href) errors.push(`${file}：CMS 站点地址与 canonical 不一致`);
-      const cmsScriptUrl = body?.attrs['data-cms-script-url'] ?? '';
-      // 脚本由 scripts/fetch-cms.mjs 自托管，同源加载；版本与哈希在下载脚本里锁定。
-      const localCms = new URL(cmsScriptUrl, pageUrl).href === new URL('admin/vendor/sveltia-cms.js', siteRoot).href;
-      if (!localCms) {
-        errors.push(`${file}：CMS 脚本应指向自托管的 admin/vendor/sveltia-cms.js`);
-      } else {
-        const size = await stat(join(dist, 'admin', 'vendor', 'sveltia-cms.js')).then((s) => s.size, () => 0);
-        if (size < 500_000) errors.push(`${file}：自托管的 CMS 脚本缺失或过小（${size} 字节）`);
+      // 后台是自包含页面：不应再引用任何外部脚本（以前的 CMS 走 CDN，2.5MB）
+      const html = await readFile(join(dist, file), 'utf8');
+      const externalScript = html.match(/<script[^>]+src=["']https?:\/\/[^"']+/i);
+      if (externalScript) {
+        errors.push(`${file}：后台不应依赖外部脚本（${externalScript[0].slice(0, 80)}）`);
       }
-      if (cmsVersion && !cmsConfig.includes(`@sveltia/cms@${cmsVersion}/schema/sveltia-cms.json`)) {
-        errors.push(`${file}：CMS 配置 schema 版本与 fetch-cms.mjs 锁定的 ${cmsVersion} 不一致`);
-      }
+      if (!/^\s*repo:\s*\S+/m.test(cmsConfig)) errors.push(`${file}：后台配置缺少 repo`);
+      if (!/^\s*branch:\s*\S+/m.test(cmsConfig)) errors.push(`${file}：后台配置缺少 branch`);
+      if (!/^\s*media_folder:\s*\S+/m.test(cmsConfig)) errors.push(`${file}：后台配置缺少 media_folder`);
       const config = nodes.find((element) => hasRel(element, 'cms-config-url'));
       if (!config || new URL(config.attrs.href ?? '', pageUrl).href !== new URL('admin/config.yml', siteRoot).href) {
         errors.push(`${file}：CMS 配置链接不正确`);

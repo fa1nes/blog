@@ -1,6 +1,6 @@
 ---
 import { getEntry, render } from 'astro:content';
-import { author, social } from '~/site.config';
+import { author, visibleSocial } from '~/site.config';
 import { formatDate } from '~/lib/format';
 import { href } from '~/lib/url';
 import BaseLayout from '~/layouts/BaseLayout.astro';
@@ -42,9 +42,9 @@ const description = entry?.data.description ?? `关于 ${author.name} 与这个�
         {author.bio && <p class="mt-1 text-[0.9rem] leading-relaxed text-ink-soft">{author.bio}</p>}
       </div>
       {
-        social.length > 0 && (
+        visibleSocial.length > 0 && (
           <div class="flex shrink-0 items-center gap-0.5">
-            {social.map((item) => (
+            {visibleSocial.map((item) => (
               <a
                 href={item.href}
                 target={item.href.startsWith('http') ? '_blank' : undefined}

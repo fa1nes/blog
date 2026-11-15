@@ -29,6 +29,11 @@ export interface SocialLink {
   label: string;
   href: string;
   icon: IconName;
+  /**
+   * 是否显示。设为 false 只是隐藏，不删配置，
+   * 想临时收起某个入口时不用把链接删掉再粘回来。
+   */
+  enabled?: boolean;
 }
 
 /* ------------------------------------------------------------------
@@ -98,9 +103,27 @@ export const nav: NavItem[] = [
   { label: '关于', href: '/about/' },
 ];
 
+/**
+ * 社交链接。每一项都有开关：
+ *   - 想加一个入口：把下面注释掉的某行取消注释，改 href
+ *   - 想暂时隐藏：加 `enabled: false`，链接留着但页面不显示
+ * 页脚、首页、关于页都读这里，改一处三处同时生效。
+ */
 export const social: SocialLink[] = [
-  { label: 'GitHub', href: 'https://github.com/fa1nes', icon: 'github' },
+  { label: 'GitHub', href: 'https://github.com/fa1nes', icon: 'github', enabled: true },
+
+  // 下面是常见入口，需要哪个就取消注释并填上地址
+  // { label: 'X', href: 'https://x.com/yourname', icon: 'x', enabled: true },
+  // { label: '微博', href: 'https://weibo.com/u/0000000000', icon: 'weibo', enabled: true },
+  // { label: '知乎', href: 'https://www.zhihu.com/people/yourname', icon: 'zhihu', enabled: true },
+  // { label: '哔哩哔哩', href: 'https://space.bilibili.com/000000', icon: 'bilibili', enabled: true },
+  // { label: 'Telegram', href: 'https://t.me/yourname', icon: 'telegram', enabled: true },
+  // { label: '掘金', href: 'https://juejin.cn/user/000000', icon: 'juejin', enabled: true },
+  // { label: '邮箱', href: 'mailto:you@example.com', icon: 'mail', enabled: true },
 ];
+
+/** 页面上实际渲染的社交入口（过滤掉 enabled: false 的） */
+export const visibleSocial: SocialLink[] = social.filter((item) => item.enabled !== false);
 
 /* ------------------------------------------------------------------
  * 3.5 友情链接

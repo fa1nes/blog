@@ -59,8 +59,6 @@ src/content/pages/*
 public/uploads/*
 !public/uploads/.gitkeep
 
-# 后台 CMS 脚本由 scripts/fetch-cms.mjs 在构建时下载
-public/admin/vendor/
 
 # wrangler 生成的临时目录
 .wrangler/

@@ -55,10 +55,14 @@ export default defineConfig({
     ...(seo.sitemap
       ? [
           sitemap({
-            // 后台、站内搜索与 404 不该出现在站点地图里
-            filter: (page) => ![
-              `${BASE_PATH}404/`, `${BASE_PATH}404.html`, `${BASE_PATH}admin/`, `${BASE_PATH}search/`,
-            ].includes(new URL(page).pathname),
+            // 后台、站内搜索与 404 不该出现在站点地图里（后台整段排除）
+            filter: (page) => {
+              const pathname = new URL(page).pathname;
+              if (pathname.startsWith(`${BASE_PATH}admin/`)) return false;
+              return ![
+                `${BASE_PATH}404/`, `${BASE_PATH}404.html`, `${BASE_PATH}search/`,
+              ].includes(pathname);
+            },
           }),
         ]
       : []),
@@ -70,6 +74,22 @@ export default defineConfig({
     // CMS 正文中的根路径链接跟随部署 base，相对图片仍交给 Astro 处理。
     processor: satteri({
       hastPlugins: [{
+        // 给表格标注列数：窄屏下只让「列多」的表横向滚动，
+        // 两列的长文本表仍然正常换行，不会被迫左右滑。
+        name: 'table-columns',
+        element: {
+          filter: ['table'],
+          visit(node, ctx) {
+            const sections = Array.isArray(node.children) ? node.children : [];
+            const head = sections.find((child) => child.tagName === 'thead') ?? sections[0];
+            const row = (head?.children ?? []).find((child) => child.tagName === 'tr');
+            const columns = (row?.children ?? []).filter(
+              (cell) => cell.tagName === 'th' || cell.tagName === 'td',
+            ).length;
+            if (columns) ctx.setProperty(node, 'data-cols', String(columns));
+          },
+        },
+      }, {
         name: 'content-base-path',
         element: {
           filter: ['a', 'img', 'video', 'audio', 'source'],

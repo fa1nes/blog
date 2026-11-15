@@ -715,6 +715,28 @@
   overflow-x: auto;
   border-collapse: collapse;
   font-size: 0.94em;
+  font-variant-numeric: tabular-nums;
+  overscroll-behavior-x: contain;
+}
+
+/* 窄屏：三列以上的表横向滚动，别把「43 ms / 0%」这种数据挤成两三行。
+   两列的表多为长文本（配置项、说明），继续换行更合适。 */
+@media (max-width: 640px) {
+  /* 表格本身仍是「撑满容器 + 内部滚动」的块，
+     只让单元格不换行，内容自然超出，由表格自己滚，
+     页面整体不会横向溢出。 */
+  .prose table:is([data-cols='3'], [data-cols='4'], [data-cols='5'], [data-cols='6']) {
+    width: 100%;
+    max-width: 100%;
+  }
+  .prose table:is([data-cols='3'], [data-cols='4'], [data-cols='5'], [data-cols='6'])
+    :is(th, td) {
+    white-space: nowrap;
+  }
+  .prose table:is([data-cols='3'], [data-cols='4'], [data-cols='5'], [data-cols='6'])
+    :is(th, td) {
+    padding-inline: 0.8em;
+  }
 }
 
 .prose :is(th, td) {

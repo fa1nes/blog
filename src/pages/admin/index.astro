@@ -2,23 +2,18 @@
 import { href } from '~/lib/url';
 import { site } from '~/site.config';
 
-// 后台入口用 Astro 路由，配置文件仍由 public/admin/config.yml 提供。
-// 预览根地址跟随本次构建的 site/base，本地开发则指向当前开发服务器。
-const siteRoot = new URL(
-  href('/'),
-  import.meta.env.DEV ? Astro.url : (Astro.site ?? Astro.url),
-).href;
+// 后台是一个自包含的轻量页面：不加载任何第三方框架，脚本约 20KB。
+// 仓库、分支、OAuth 代理地址都从 /admin/config.yml 读取，改配置不用改代码。
 const appTitle = `${site.title} · 内容工作台`;
-// CMS 脚本由 scripts/fetch-cms.mjs 在构建时下载到 public/admin/vendor/，
-// 同源加载：没有跨域、没有 SRI 失败，国内网络也不用等 unpkg。
-const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
+// 绝对的站点根地址，验收脚本会拿它和 canonical 比对
+const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
 ---
 
 <!doctype html>
 <html lang={site.lang}>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#268358" />
     <link rel="icon" href={href('/favicon.png')} type="image/png" sizes="32x32" />
@@ -26,757 +21,928 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
     <link rel="cms-config-url" href={href('/admin/config.yml')} type="application/yaml" />
     <title>{appTitle}</title>
   </head>
-  <body
-    data-pagefind-ignore
-    data-site-url={siteRoot}
-    data-app-title={appTitle}
-    data-logo-url={href('/brand-icon.png')}
-    data-cms-script-url={cmsScriptUrl}
-  >
-    <header class="admin-brand">
-      <a href={href('/')} class="admin-brand-link" aria-label="返回博客首页">
-        <img src={href('/icon-64.png')} alt="" width="32" height="32" />
-        <span>
-          <strong>{site.shortTitle}</strong>
-          <small>内容工作台</small>
-        </span>
+  <body data-site-url={siteRoot} data-app-title={appTitle} data-logo-url={href('/brand-icon.png')}>
+    <header class="bar">
+      <a class="brand" href={href('/')} aria-label="返回博客首页">
+        <img src={href('/icon-64.png')} alt="" width="30" height="30" />
+        <span><strong>{site.shortTitle}</strong><small>内容工作台</small></span>
       </a>
-      <nav class="admin-actions" aria-label="后台帮助">
-        <details class="admin-help">
-          <summary>登录与恢复</summary>
-          <div class="admin-help-panel">
-            <strong>浏览器太老打不开？</strong>
-            <p class="admin-help-alt">
-              用 <a href={href('/admin/lite/')}>极简后台</a>：只有一个 Markdown 输入框，
-              iOS 12、Android 5、微信内置浏览器都能跑。
-            </p>
-
-            <strong>最快的办法：不用令牌</strong>
-            <p class="admin-help-alt">
-              打开 <a href="https://github.dev/fa1nes/blog" target="_blank" rel="noopener noreferrer"
-                >github.dev/fa1nes/blog</a
-              >：浏览器里直接变成 VS Code，用 GitHub 账号登录就能改文章、传图片、提交，走同一条部署流水线。
-            </p>
-
-            <strong>使用 GitHub 令牌登录</strong>
-            <ol>
-              <li>使用拥有当前博客仓库写入权限的 GitHub 账号，在后台选择“以令牌登录”。</li>
-              <li>
-                创建 <a
-                  href="https://github.com/settings/personal-access-tokens/new"
-                  target="_blank"
-                  rel="noopener noreferrer">fine-grained PAT</a
-                >，仅授予当前博客仓库访问权限，并设置过期时间。
-              </li>
-              <li>
-                仓库权限只需 <code>Contents: Read and write</code>；<code>Metadata: Read</code>
-                由 GitHub 自动附带。当前直接提交工作流无需 Pull requests 或 Workflows 权限。
-              </li>
-              <li>将令牌粘贴到 CMS 登录框。请只在可信设备登录，使用共享设备后退出后台。</li>
-            </ol>
-            <p>
-              保存会直接提交到发布分支并触发部署。若分支保护禁止直接提交，需要先允许该账号写入。
-              登录失败时请检查令牌有效期、仓库授权和 GitHub 服务状态。
-            </p>
-            <p>
-              页面或配置加载异常时，先保留尚未提交的正文，再 <a href={href('/admin/')}
-                >重新打开后台</a
-              >。
-            </p>
-          </div>
-        </details>
-        <a href={href('/')} class="admin-site-link">查看博客</a>
+      <nav class="bar-actions">
+        <button type="button" id="helpBtn" class="ghost small">帮助</button>
+        <a class="ghost small" href={href('/')}>查看博客</a>
       </nav>
     </header>
 
-    <main class="admin-loading" role="status" aria-live="polite" aria-atomic="true">
-      <span class="admin-spinner" aria-hidden="true"></span>
-      <div>
-        <strong data-admin-heading>正在打开内容工作台</strong>
-        <p data-admin-message>加载文章、动态、友链与页面管理功能…</p>
-        <button class="admin-retry" type="button" hidden>重新加载</button>
-      </div>
+    <div id="toast" class="toast" hidden></div>
+
+    <main class="wrap">
+      <section id="loginView" hidden>
+        <h1>登录</h1>
+        <p class="lede">用 GitHub 账号登录，或粘贴一个访问令牌。</p>
+        <p class="row">
+          <button type="button" id="oauthBtn" class="primary">使用 GitHub 登录</button>
+          <button type="button" id="tokenToggle" class="ghost">用访问令牌</button>
+        </p>
+        <div id="tokenPanel" hidden>
+          <label for="tokenInput">GitHub 令牌（只需 Contents: Read and write）</label>
+          <input id="tokenInput" type="password" autocomplete="off" placeholder="github_pat_…" />
+          <p class="row"><button type="button" id="tokenBtn" class="primary">用令牌进入</button></p>
+          <p class="hint">
+            生成地址：<a
+              href="https://github.com/settings/personal-access-tokens/new"
+              target="_blank"
+              rel="noopener">fine-grained PAT</a
+            >，只授权内容仓库。令牌只保存在这台设备上。
+          </p>
+        </div>
+      </section>
+
+      <section id="listView" hidden>
+        <div class="list-head">
+          <div id="tabs" class="tabs" role="tablist"></div>
+          <div class="list-actions">
+            <button type="button" id="newBtn" class="primary small">新建</button>
+            <button type="button" id="reloadBtn" class="ghost small">刷新</button>
+            <button type="button" id="logoutBtn" class="ghost small">退出</button>
+          </div>
+        </div>
+        <ul id="list" class="list"></ul>
+        <p id="listEmpty" class="empty" hidden></p>
+      </section>
+
+      <section id="editView" hidden>
+        <div class="edit-head">
+          <button type="button" id="backBtn" class="ghost small">← 返回</button>
+          <span id="editPath" class="path"></span>
+        </div>
+        <form id="editForm" class="form"></form>
+        <div class="save-row">
+          <button type="button" id="saveBtn" class="primary">保存并发布</button>
+          <button type="button" id="deleteBtn" class="danger" hidden>删除</button>
+        </div>
+      </section>
     </main>
 
-    <!-- 浏览器太老（iOS < 16.4）时的兜底：完整后台的脚本里有正则 lookbehind，
-         那是语法级特性，垫片解决不了，只能换一个极简编辑器。 -->
-    <main class="admin-legacy" id="legacy-fallback" hidden>
-      <h1 id="legacy-title">这台设备的浏览器版本偏老</h1>
-      <p id="legacy-body">
-        完整后台依赖较新的浏览器能力，这台设备跑不起来。可以改用极简后台：只有一个 Markdown 输入框，
-        保存后同样提交到仓库并触发部署。
+    <dialog id="helpDialog" class="help">
+      <h2>几点说明</h2>
+      <ul>
+        <li>保存会直接提交到内容仓库，两个站点大约两分钟后自动更新。</li>
+        <li>文章的文件名决定排序与内部标识，网址由「网址编号」决定（本站用递增数字）。</li>
+        <li>图片会上传到 <code>public/uploads/</code>，正文里用 <code>/uploads/名字</code> 引用。</li>
+        <li>勾上「草稿」不会出现在线上，取消后再保存才发布。</li>
+        <li>这个后台没有任何第三方依赖，iOS 12 以上的设备都能用。</li>
+      </ul>
+      <p class="row">
+        <button type="button" id="helpClose" class="primary">知道了</button>
       </p>
-      <p class="admin-legacy-actions">
-        <a class="admin-legacy-primary" href={href('/admin/lite/')}>进入极简后台</a>
-        <button class="admin-legacy-secondary" type="button" id="force-full">重新加载完整后台</button>
-      </p>
-      <p class="admin-legacy-detail" id="legacy-detail" hidden></p>
-      <p class="admin-legacy-note">
-        极简后台需要粘贴一个 GitHub 令牌（只读改这一个仓库），首次填一次即可。也可以直接编辑仓库里的 Markdown。
-      </p>
-    </main>
-    <div id="nc-root" hidden></div>
-
-    <noscript>
-      <style is:inline>.admin-loading { display: none; }</style>
-      <main class="admin-fallback">
-        <h1>需要启用 JavaScript</h1>
-        <p>内容管理后台依赖 JavaScript 才能加载，请启用后刷新页面。</p>
-        <a href={href('/')}>返回博客首页</a>
-      </main>
-    </noscript>
+    </dialog>
 
     <style is:inline>
       :root {
+        --accent: #268358;
+        --accent-weak: #eafaf2;
+        --accent-text: #1e7049;
+        --ink: #2c3a35;
+        --ink-soft: #5d6b64;
+        --ink-faint: #86948c;
+        --line: #dfe6e2;
+        --paper: #f6f8f7;
+        --card: #ffffff;
+        --danger: #a1332b;
         color-scheme: light dark;
-        font-family:
-          system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-          'Microsoft YaHei', sans-serif;
       }
-
+      * { box-sizing: border-box; }
       body {
         margin: 0;
-        min-height: 100vh;
-        background: #f8fafc;
-        color: #35434f;
+        padding: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font: 16px/1.7 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        -webkit-text-size-adjust: 100%;
       }
-
-      .admin-brand {
-        position: relative;
-        z-index: 10;
-        box-sizing: border-box;
+      .bar {
+        position: sticky;
+        top: 0;
+        z-index: 5;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        height: 4rem;
         gap: 0.75rem;
-        padding: 0.75rem clamp(0.75rem, 4vw, 2rem);
-        border-bottom: 1px solid #dde3ea;
-        background: #fff;
+        height: 3.5rem;
+        padding: 0 clamp(0.75rem, 4vw, 2rem);
+        border-bottom: 1px solid var(--line);
+        background: var(--card);
       }
-
-      .admin-brand-link,
-      .admin-actions {
+      .brand {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-      }
-
-      .admin-brand-link {
+        gap: 0.6rem;
         min-width: 0;
         color: inherit;
         text-decoration: none;
       }
+      .brand img { border-radius: 8px; }
+      .brand span { display: flex; flex-direction: column; line-height: 1.25; }
+      .brand strong { font-size: 0.95rem; }
+      .brand small { color: var(--ink-faint); font-size: 0.75rem; }
+      .bar-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+      .bar-actions a { display: inline-flex; align-items: center; text-decoration: none; }
 
-      .admin-brand-link span { display: flex; flex-direction: column; }
-      .admin-brand-link strong { color: #35434f; font-size: 0.95rem; }
-      .admin-brand-link small { color: #6b7885; font-size: 0.75rem; }
-      .admin-actions { flex-shrink: 0; font-size: 0.82rem; }
+      .wrap { max-width: 44rem; margin: 0 auto; padding: 1.5rem clamp(0.9rem, 4vw, 2rem) 4rem; }
+      h1 { font-size: 1.35rem; margin: 0 0 0.35rem; }
+      h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+      .lede { color: var(--ink-soft); font-size: 0.92rem; margin: 0 0 1.1rem; }
+      .hint { color: var(--ink-faint); font-size: 0.82rem; margin: 0.35rem 0 0; }
+      .hint a { color: var(--accent); }
 
-      .admin-site-link,
-      .admin-retry {
-        padding: 0.45rem 0.85rem;
+      button {
+        padding: 0.6rem 1.1rem;
         border: 0;
-        border-radius: 9999px;
-        background: #eafaf2;
-        color: #1e7049;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
         font: inherit;
         font-weight: 600;
-        text-decoration: none;
         cursor: pointer;
       }
+      button.small { padding: 0.4rem 0.85rem; font-size: 0.85rem; }
+      button.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--line); }
+      button.danger { background: #fdeceb; color: var(--danger); }
+      button:disabled { opacity: 0.55; cursor: default; }
+      .row { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; margin: 0 0 0.4rem; }
 
-      .admin-help summary { cursor: pointer; }
-
-      .admin-help-panel {
-        position: absolute;
-        top: calc(100% + 0.5rem);
-        right: 0.75rem;
-        box-sizing: border-box;
-        width: min(26rem, calc(100vw - 1.5rem));
-        max-height: calc(100dvh - 5.5rem);
-        overflow: auto;
-        padding: 1.25rem;
-        border: 1px solid #dde3ea;
-        border-radius: 1rem;
-        background: #fff;
-        color: #35434f;
-        box-shadow: 0 12px 36px rgb(0 0 0 / 12%);
-        line-height: 1.7;
+      label { display: block; margin: 0.9rem 0 0.35rem; font-size: 0.82rem; color: var(--ink-soft); }
+      input[type='text'],
+      input[type='date'],
+      input[type='password'],
+      textarea {
+        width: 100%;
+        padding: 0.65rem 0.8rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--card);
+        color: inherit;
+        font: inherit;
+        -webkit-appearance: none;
       }
-
-      .admin-help-panel ol { padding-left: 1.4rem; }
-      .admin-help-panel li + li { margin-top: 0.5rem; }
-      .admin-help-panel p { margin-bottom: 0; }
-      .admin-help-panel strong { display: block; margin-bottom: 0.35rem; }
-      .admin-help-panel strong + ol,
-      .admin-help-panel strong + p { margin-top: 0; }
-      .admin-help-panel p + strong { margin-top: 0.9rem; }
-      .admin-help-alt { margin: 0 0 1rem; }
-      .admin-help-panel code { overflow-wrap: anywhere; }
-      .admin-help-panel a,
-      .admin-fallback a { color: #1e7049; text-underline-offset: 0.2em; }
-
-      .admin-loading {
-        box-sizing: border-box;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 1rem;
-        min-height: calc(100vh - 4rem);
-        padding: 2rem;
-      }
-
-      .admin-loading strong { display: block; }
-      .admin-loading p {
-        max-width: 32rem;
-        margin: 0.5rem 0 0;
-        color: #50616d;
+      textarea {
+        min-height: 19rem;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
         font-size: 0.9rem;
-        line-height: 1.7;
+        line-height: 1.65;
       }
+      textarea.short { min-height: 4.5rem; font-family: inherit; font-size: 0.95rem; }
+      .check { display: flex; align-items: center; gap: 0.5rem; margin: 0.9rem 0 0; font-size: 0.9rem; color: var(--ink-soft); }
+      .check input { width: auto; }
+      .grid { display: flex; flex-wrap: wrap; gap: 0 0.8rem; }
+      .grid > div { flex: 1 1 12rem; }
 
-      .admin-retry { margin-top: 1rem; }
-      .admin-spinner {
-        flex-shrink: 0;
-        width: 1.25rem;
-        height: 1.25rem;
-        border: 2px solid #dde3ea;
-        border-top-color: #268358;
-        border-radius: 9999px;
-        animation: admin-spin 0.75s linear infinite;
+      .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+      .tab {
+        padding: 0.4rem 0.9rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--ink-soft);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
       }
-
-      #nc-root {
-        position: fixed;
-        inset: 4rem 0 0;
-        /* CMS 编辑器使用 fixed 定位，将其包含在导航下方，避免保存按钮被遮挡。 */
-        transform: translateZ(0);
-      }
-      #nc-root[hidden],
-      .admin-loading[hidden],
-      .admin-spinner[hidden],
-      .admin-retry[hidden] { display: none; }
-
-      .admin-fallback {
-        box-sizing: border-box;
-        width: min(100% - 2rem, 32rem);
-        margin: 15vh auto 0;
-        padding: 2rem;
-        border: 1px solid #dde3ea;
-        border-radius: 1rem;
-        background: #fff;
-      }
-      .admin-fallback h1 { margin: 0; font-size: 1.4rem; }
-      .admin-fallback p { line-height: 1.7; }
-
-      .admin-legacy {
-        box-sizing: border-box;
-        width: min(100% - 2rem, 34rem);
-        margin: 8vh auto 0;
-        padding: 1.75rem;
-        border: 1px solid #dde3ea;
-        border-radius: 1rem;
-        background: #fff;
-        line-height: 1.75;
-      }
-      .admin-legacy h1 { margin: 0 0 0.75rem; font-size: 1.35rem; }
-      .admin-legacy p { margin: 0 0 1rem; color: #4a5a66; }
-      .admin-legacy-actions {
+      .tab[aria-selected='true'] { background: var(--accent-weak); border-color: var(--accent); color: var(--accent-text); }
+      .list-head {
         display: flex;
         flex-wrap: wrap;
         gap: 0.6rem;
+        justify-content: space-between;
         align-items: center;
+        margin-bottom: 1rem;
       }
-      .admin-legacy-primary,
-      .admin-legacy-secondary {
-        display: inline-block;
-        padding: 0.7rem 1.2rem;
-        border: 0;
-        border-radius: 9999px;
-        font: inherit;
-        font-weight: 600;
-        text-decoration: none;
+      .list-actions { display: flex; gap: 0.4rem; }
+
+      .list {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        overflow: hidden;
+      }
+      .list li + li { border-top: 1px solid var(--paper); }
+      .item {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.85rem 1rem;
+        border-radius: 0;
+        background: transparent;
+        color: inherit;
+        font-weight: 400;
+        text-align: left;
         cursor: pointer;
       }
-      .admin-legacy-primary { background: #268358; color: #fff; }
-      .admin-legacy-secondary { background: #eef2f5; color: #35434f; }
-      .admin-legacy-note { margin: 1rem 0 0; font-size: 0.85rem; color: #6b7885; }
-      .admin-legacy-detail {
-        margin: 1rem 0 0;
-        padding: 0.7rem 0.85rem;
-        border-radius: 0.6rem;
-        background: #f4f6f8;
-        color: #55636f;
-        font-size: 0.8rem;
-        line-height: 1.6;
-        word-break: break-word;
+      .item:hover { background: var(--paper); }
+      .item b { font-weight: 600; word-break: break-all; }
+      .item span { flex-shrink: 0; color: var(--ink-faint); font-size: 0.8rem; }
+      .empty { padding: 2rem 0; color: var(--ink-faint); text-align: center; }
+
+      .edit-head { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+      .path { color: var(--ink-faint); font-size: 0.78rem; word-break: break-all; }
+      .form { padding: 0.4rem 1.1rem 1.2rem; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+      .save-row { display: flex; gap: 0.6rem; margin-top: 1rem; }
+
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 1.4rem;
+        z-index: 20;
+        max-width: calc(100vw - 2rem);
+        padding: 0.7rem 1.1rem;
+        border-radius: 999px;
+        background: #1f2b26;
+        color: #fff;
+        font-size: 0.88rem;
+        transform: translateX(-50%);
+        box-shadow: 0 10px 30px rgb(0 0 0 / 20%);
       }
-      @keyframes admin-spin { to { transform: rotate(360deg); } }
-      @media (prefers-reduced-motion: reduce) {
-        .admin-spinner { animation: none; }
+      .toast.bad { background: #7f2019; }
+
+      .help {
+        max-width: min(30rem, calc(100vw - 2rem));
+        padding: 1.2rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--card);
+        color: var(--ink);
       }
-      @media (max-width: 380px) {
-        .admin-brand-link small { display: none; }
-        .admin-actions { gap: 0.5rem; }
-        .admin-site-link { padding-inline: 0.6rem; }
-      }
+      .help::backdrop { background: rgb(0 0 0 / 35%); }
+      .help ul { margin: 0 0 1rem; padding-left: 1.1rem; color: var(--ink-soft); font-size: 0.9rem; }
+      .help li + li { margin-top: 0.4rem; }
+      .help code { padding: 0.1em 0.35em; border-radius: 4px; background: var(--paper); }
+
       @media (prefers-color-scheme: dark) {
-        body { background: #1a202c; color: #f3f7fb; }
-        .admin-brand,
-        .admin-help-panel,
-        .admin-fallback { border-color: #3f4c5f; background: #232b38; color: #f3f7fb; }
-        .admin-brand-link strong { color: #f3f7fb; }
-        .admin-brand-link small,
-        .admin-loading p { color: #a0aec0; }
-        .admin-help-panel a,
-        .admin-fallback a { color: #68d391; }
+        :root {
+          --ink: #eef4f0;
+          --ink-soft: #a8b6ae;
+          --ink-faint: #7d8b84;
+          --line: #333f39;
+          --paper: #1a201d;
+          --card: #222a26;
+          --accent-weak: #1e3a2c;
+          --accent-text: #7fd6a6;
+        }
+        button.danger { background: #3a201e; color: #f3a9a2; }
+        .toast { background: #0f1512; }
       }
     </style>
 
     <script is:inline>
-      // Sveltia CMS 用了一批较新的 Web API。iOS/iPadOS 16 的 Safari、部分国产浏览器
-      // 内核（X5、UC）都缺其中几个，CMS.init() 会直接抛错，页面停在「初始化失败」。
-      // 这里补到 iOS 16.0 可用：缺什么补什么，已有的不覆盖。
-      (() => {
-        const define = (target, key, value) => {
-          try {
-            if (!(key in target)) {
-              Object.defineProperty(target, key, { value, writable: true, configurable: true });
-            }
-          } catch {
-            /* 只读环境忽略 */
-          }
+      /* 轻量后台：ES5 + XMLHttpRequest，不依赖任何框架与 CDN。
+         现代浏览器和老 iPad 共用同一份代码，没有第二套降级页面。 */
+      (function () {
+        'use strict';
+
+        var CONFIG = {
+          repo: 'fa1nes/blog-content',
+          branch: 'main',
+          authBase: '',
+          mediaFolder: 'public/uploads'
         };
 
-        /* ---------- Promise / Object ---------- */
+        var TOKEN_KEY = 'blog-admin-token';
 
-        define(Promise, 'withResolvers', function withResolvers() {
-          let resolve;
-          let reject;
-          const promise = new Promise((res, rej) => {
-            resolve = res;
-            reject = rej;
-          });
-          return { promise, resolve, reject };
-        });
-
-        define(Promise, 'try', function promiseTry(callback) {
-          return new Promise((resolve) => resolve(callback()));
-        });
-
-        const groupBy = (toMap) => function group(items, callback) {
-          const out = toMap ? new Map() : {};
-          let index = 0;
-          for (const item of items) {
-            const key = callback(item, index++);
-            if (toMap) {
-              if (!out.has(key)) out.set(key, []);
-              out.get(key).push(item);
-            } else {
-              (out[key] = out[key] || []).push(item);
-            }
+        var COLLECTIONS = [
+          {
+            id: 'posts',
+            label: '文章',
+            dir: 'src/content/posts',
+            ext: 'md',
+            body: true,
+            fields: [
+              { key: 'title', label: '标题', type: 'text', required: true },
+              { key: 'slug', label: '网址编号', type: 'text', hint: '决定 /posts/编号/，按发布时间递增' },
+              { key: 'pubDate', label: '发布日期', type: 'date' },
+              { key: 'category', label: '分类', type: 'text' },
+              { key: 'tags', label: '标签', type: 'text', hint: '逗号分隔' },
+              { key: 'description', label: '摘要', type: 'textarea-short' },
+              { key: 'draft', label: '草稿', type: 'bool' },
+              { key: 'pinned', label: '置顶', type: 'bool' }
+            ]
+          },
+          {
+            id: 'notes',
+            label: '动态',
+            dir: 'src/content/notes',
+            ext: 'md',
+            body: true,
+            fields: [
+              { key: 'pubDate', label: '时间', type: 'text', hint: '2026-07-26 14:30' },
+              { key: 'mood', label: '心情', type: 'text' },
+              { key: 'tags', label: '标签', type: 'text', hint: '逗号分隔' },
+              { key: 'draft', label: '草稿', type: 'bool' }
+            ]
+          },
+          {
+            id: 'friends',
+            label: '友链',
+            dir: 'src/content/friends',
+            ext: 'md',
+            body: false,
+            fields: [
+              { key: 'name', label: '站点名', type: 'text', required: true },
+              { key: 'href', label: '地址', type: 'text', required: true, hint: 'https:// 开头' },
+              { key: 'description', label: '一句话介绍', type: 'text' },
+              { key: 'avatar', label: '头像地址', type: 'text' },
+              { key: 'order', label: '排序', type: 'text', hint: '数字越小越靠前' }
+            ]
+          },
+          {
+            id: 'pages',
+            label: '页面',
+            dir: 'src/content/pages',
+            ext: 'md',
+            body: true,
+            fields: [
+              { key: 'title', label: '标题', type: 'text', required: true },
+              { key: 'description', label: '描述', type: 'text' },
+              { key: 'updatedDate', label: '更新日期', type: 'date' }
+            ]
           }
-          return out;
+        ];
+
+        var state = {
+          token: '',
+          collection: COLLECTIONS[0],
+          list: [],
+          current: null
         };
-        define(Object, 'groupBy', groupBy(false));
-        define(Map, 'groupBy', groupBy(true));
 
-        define(Object, 'hasOwn', function hasOwn(object, key) {
-          return Object.prototype.hasOwnProperty.call(object, key);
-        });
+        try { state.token = localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { state.token = ''; }
 
-        /* ---------- URL / AbortSignal ---------- */
+        function $(id) { return document.getElementById(id); }
+        var views = { login: $('loginView'), list: $('listView'), edit: $('editView') };
 
-        define(URL, 'canParse', function canParse(url, base) {
-          try {
-            new URL(url, base);
-            return true;
-          } catch {
-            return false;
-          }
-        });
+        /* ---------------- 基础 ---------------- */
 
-        define(URL, 'parse', function parse(url, base) {
-          try {
-            return new URL(url, base);
-          } catch {
-            return null;
-          }
-        });
+        function show(name) {
+          views.login.hidden = name !== 'login';
+          views.list.hidden = name !== 'list';
+          views.edit.hidden = name !== 'edit';
+          window.scrollTo(0, 0);
+        }
 
-        define(AbortSignal, 'timeout', function timeout(ms) {
-          const controller = new AbortController();
-          setTimeout(() => controller.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
-          return controller.signal;
-        });
+        var toastTimer = 0;
+        function toast(text, bad) {
+          var el = $('toast');
+          el.textContent = text;
+          el.className = bad ? 'toast bad' : 'toast';
+          el.hidden = false;
+          window.clearTimeout(toastTimer);
+          toastTimer = window.setTimeout(function () { el.hidden = true; }, bad ? 6000 : 2600);
+        }
 
-        define(AbortSignal, 'any', function any(signals) {
-          const controller = new AbortController();
-          for (const signal of signals) {
-            if (signal.aborted) {
-              controller.abort(signal.reason);
-              break;
-            }
-            signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
-          }
-          return controller.signal;
-        });
+        function b64encode(text) {
+          return window.btoa(unescape(encodeURIComponent(text)));
+        }
+        function b64decode(text) {
+          return decodeURIComponent(escape(window.atob(String(text).replace(/\s/g, ''))));
+        }
 
-        /* ---------- Array ---------- */
+        function safeName(value) {
+          return String(value || '')
+            .toLowerCase()
+            .replace(/\.[^.]+$/, '')
+            .replace(/[^a-z0-9-]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 60);
+        }
 
-        define(Array.prototype, 'at', function at(index) {
-          const i = Math.trunc(index) || 0;
-          return this[i < 0 ? this.length + i : i];
-        });
-        define(Array.prototype, 'toSorted', function toSorted(compare) {
-          return [...this].sort(compare);
-        });
-        define(Array.prototype, 'toReversed', function toReversed() {
-          return [...this].reverse();
-        });
-        define(Array.prototype, 'toSpliced', function toSpliced(start, deleteCount, ...items) {
-          const copy = [...this];
-          copy.splice(start, deleteCount, ...items);
-          return copy;
-        });
-        define(Array.prototype, 'with', function with_(index, value) {
-          const copy = [...this];
-          const i = Math.trunc(index) || 0;
-          copy[i < 0 ? copy.length + i : i] = value;
-          return copy;
-        });
-        define(Array.prototype, 'findLast', function findLast(callback) {
-          for (let i = this.length - 1; i >= 0; i -= 1) if (callback(this[i], i, this)) return this[i];
-          return undefined;
-        });
-        define(Array.prototype, 'findLastIndex', function findLastIndex(callback) {
-          for (let i = this.length - 1; i >= 0; i -= 1) if (callback(this[i], i, this)) return i;
-          return -1;
-        });
-        define(Array, 'fromAsync', async function fromAsync(items, mapFn) {
-          const out = [];
-          for await (const item of items) out.push(mapFn ? await mapFn(item, out.length) : item);
-          return out;
-        });
+        function dateToday() {
+          var d = new Date();
+          function pad(n) { return (n < 10 ? '0' : '') + n; }
+          return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+        }
 
-        /* ---------- Set ---------- */
+        /* ---------------- GitHub API ---------------- */
 
-        const setLike = (value) => new Set(value ?? []);
-        define(Set.prototype, 'union', function union(other) {
-          const out = new Set(this);
-          for (const value of setLike(other)) out.add(value);
-          return out;
-        });
-        define(Set.prototype, 'intersection', function intersection(other) {
-          const right = setLike(other);
-          const out = new Set();
-          for (const value of this) if (right.has(value)) out.add(value);
-          return out;
-        });
-        define(Set.prototype, 'difference', function difference(other) {
-          const right = setLike(other);
-          const out = new Set();
-          for (const value of this) if (!right.has(value)) out.add(value);
-          return out;
-        });
-        define(Set.prototype, 'symmetricDifference', function symmetricDifference(other) {
-          const right = setLike(other);
-          const out = new Set();
-          for (const value of this) if (!right.has(value)) out.add(value);
-          for (const value of right) if (!this.has(value)) out.add(value);
-          return out;
-        });
-        define(Set.prototype, 'isSubsetOf', function isSubsetOf(other) {
-          for (const value of this) if (!setLike(other).has(value)) return false;
-          return true;
-        });
-        define(Set.prototype, 'isSupersetOf', function isSupersetOf(other) {
-          for (const value of setLike(other)) if (!this.has(value)) return false;
-          return true;
-        });
-        define(Set.prototype, 'isDisjointFrom', function isDisjointFrom(other) {
-          for (const value of setLike(other)) if (this.has(value)) return false;
-          return true;
-        });
-
-        /* ---------- String ---------- */
-
-        const isWellFormed = (string) => {
-          for (let i = 0; i < string.length; i += 1) {
-            const code = string.charCodeAt(i);
-            if (code >= 0xd800 && code <= 0xdbff) {
-              const next = string.charCodeAt(i + 1);
-              if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
-              i += 1;
-            } else if (code >= 0xdc00 && code <= 0xdfff) {
-              return false;
-            }
-          }
-          return true;
-        };
-        define(String.prototype, 'isWellFormed', function isWellFormed_() {
-          return isWellFormed(this);
-        });
-        define(String.prototype, 'toWellFormed', function toWellFormed() {
-          let out = '';
-          for (let i = 0; i < this.length; i += 1) {
-            const code = this.charCodeAt(i);
-            if (code >= 0xd800 && code <= 0xdbff) {
-              const next = this.charCodeAt(i + 1);
-              out += next >= 0xdc00 && next <= 0xdfff ? this[i] + this[i + 1] : '\uFFFD';
-              i += 1;
-            } else {
-              out += code >= 0xdc00 && code <= 0xdfff ? '\uFFFD' : this[i];
-            }
-          }
-          return out;
-        });
-
-        /* ---------- TypedArray 与二进制 ---------- */
-
-        define(Uint8Array.prototype, 'toBase64', function toBase64() {
-          let binary = '';
-          for (const byte of this) binary += String.fromCharCode(byte);
-          return btoa(binary);
-        });
-        define(Uint8Array, 'fromBase64', function fromBase64(text) {
-          const binary = atob(text);
-          const out = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
-          return out;
-        });
-        define(Uint8Array.prototype, 'toHex', function toHex() {
-          let out = '';
-          for (const byte of this) out += byte.toString(16).padStart(2, '0');
-          return out;
-        });
-        define(Uint8Array, 'fromHex', function fromHex(text) {
-          const out = new Uint8Array(text.length / 2);
-          for (let i = 0; i < out.length; i += 1) out[i] = parseInt(text.slice(i * 2, i * 2 + 2), 16);
-          return out;
-        });
-
-        /* ---------- 全局工具 ---------- */
-
-        // 不用 JSON 兜底：Sveltia 会克隆含 Map/Set/Date 的状态，JSON 会悄悄改变结构。
-        if (typeof structuredClone !== 'function') {
-          const clone = (value, seen) => {
-            if (value === null || typeof value !== 'object') return value;
-            if (seen.has(value)) return seen.get(value);
-            if (value instanceof Date) return new Date(value.getTime());
-            if (value instanceof RegExp) return new RegExp(value.source, value.flags);
-            if (value instanceof Map) {
-              const map = new Map();
-              seen.set(value, map);
-              for (const [key, item] of value) map.set(clone(key, seen), clone(item, seen));
-              return map;
-            }
-            if (value instanceof Set) {
-              const set = new Set();
-              seen.set(value, set);
-              for (const item of value) set.add(clone(item, seen));
-              return set;
-            }
-            if (ArrayBuffer.isView(value)) return value.slice();
-            if (Array.isArray(value)) {
-              const list = [];
-              seen.set(value, list);
-              for (const item of value) list.push(clone(item, seen));
-              return list;
-            }
-            const out = Object.create(Object.getPrototypeOf(value));
-            seen.set(value, out);
-            for (const key of Object.keys(value)) out[key] = clone(value[key], seen);
-            return out;
+        function api(method, path, body, done) {
+          var xhr = new XMLHttpRequest();
+          xhr.open(method, 'https://api.github.com' + path, true);
+          xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+          xhr.setRequestHeader('Authorization', 'Bearer ' + state.token);
+          if (body) xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+            var data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+            if (xhr.status >= 200 && xhr.status < 300) return done(null, data);
+            var message = (data && data.message) || ('HTTP ' + xhr.status);
+            if (xhr.status === 401) message = '令牌无效或已过期';
+            if (xhr.status === 403) message = '这个令牌没有内容仓库的写入权限';
+            if (xhr.status === 404) message = '找不到仓库或文件：' + CONFIG.repo;
+            if (xhr.status === 422) message = 'GitHub 拒绝了这次提交（文件名可能重复）';
+            done(new Error(message));
           };
-          window.structuredClone = (value) => clone(value, new WeakMap());
+          xhr.send(body ? JSON.stringify(body) : null);
         }
 
-        if (window.crypto && typeof window.crypto.randomUUID !== 'function') {
-          define(window.crypto, 'randomUUID', () =>
-            '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
-              (c ^ (Math.random() * 16) >> (c / 4)).toString(16),
-            ),
-          );
+        /* ---------------- frontmatter ---------------- */
+
+        function parseFront(text) {
+          var lines = String(text).split('\n');
+          if (lines[0].replace(/\s+$/, '') !== '---') return { head: [], body: String(text), fields: {} };
+          var end = -1;
+          for (var i = 1; i < lines.length; i++) {
+            if (lines[i].replace(/\s+$/, '') === '---') { end = i; break; }
+          }
+          if (end === -1) return { head: [], body: String(text), fields: {} };
+          var head = lines.slice(1, end);
+          var fields = {};
+          for (var j = 0; j < head.length; j++) {
+            var m = head[j].match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+            if (m) fields[m[1]] = m[2].replace(/\s+$/, '');
+          }
+          return { head: head, body: lines.slice(end + 1).join('\n').replace(/^\s*\n/, ''), fields: fields };
         }
 
-        if (typeof reportError !== 'function') {
-          window.reportError = (error) => {
-            setTimeout(() => {
-              throw error;
+        function unwrap(value) {
+          var v = String(value == null ? '' : value).trim();
+          if ((v.charAt(0) === '"' && v.charAt(v.length - 1) === '"') ||
+              (v.charAt(0) === "'" && v.charAt(v.length - 1) === "'")) {
+            v = v.slice(1, -1);
+          }
+          return v;
+        }
+
+        function formatValue(field, raw) {
+          var value = String(raw == null ? '' : raw).trim();
+          if (field.type === 'bool') return value === 'true' ? 'true' : 'false';
+          if (field.key === 'tags') {
+            var parts = value.replace(/^\[|\]$/g, '').split(',');
+            var out = [];
+            for (var i = 0; i < parts.length; i++) {
+              var item = unwrap(parts[i].replace(/^["']|["']$/g, ''));
+              if (item) out.push(item);
+            }
+            return '[' + out.join(', ') + ']';
+          }
+          if (field.key === 'order' && /^-?\d+$/.test(value)) return value;
+          if (value === '') return '';
+          return '"' + value.replace(/"/g, '\\"') + '"';
+        }
+
+        function mergeHead(head, fields, values) {
+          var lines = head.slice();
+          for (var i = 0; i < fields.length; i++) {
+            var field = fields[i];
+            if (!values.hasOwnProperty(field.key)) continue;
+            var text = formatValue(field, values[field.key]);
+            var index = -1;
+            for (var j = 0; j < lines.length; j++) {
+              if (lines[j].indexOf(field.key + ':') === 0) { index = j; break; }
+            }
+            if (text === '') {
+              if (index !== -1) lines.splice(index, 1);
+              continue;
+            }
+            if (index === -1) lines.push(field.key + ': ' + text);
+            else lines[index] = field.key + ': ' + text;
+          }
+          return lines;
+        }
+
+        function buildFile(head, body) {
+          var out = ['---'];
+          for (var i = 0; i < head.length; i++) out.push(head[i]);
+          out.push('---');
+          return out.join('\n') + '\n\n' + String(body || '').replace(/^\s*\n/, '');
+        }
+
+        /* ---------------- 登录 ---------------- */
+
+        function remember(token) {
+          state.token = token;
+          try { localStorage.setItem(TOKEN_KEY, token); } catch (e) { /* 无痕模式忽略 */ }
+        }
+
+        function loginWithToken(token) {
+          remember(token);
+          api('GET', '/user', null, function (err, user) {
+            if (err) {
+              state.token = '';
+              try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+              toast(err.message, true);
+              return;
+            }
+            toast('已登录：' + user.login);
+            loadList();
+          });
+        }
+
+        function startOauth() {
+          if (!CONFIG.authBase) {
+            toast('没有配置 OAuth 代理，请用令牌登录', true);
+            return;
+          }
+          var url = CONFIG.authBase.replace(/\/$/, '') + '/auth?provider=github&site_id=' +
+            encodeURIComponent(location.hostname) + '&scope=' + encodeURIComponent('repo,user');
+          var popup = window.open(url, 'blog-oauth', 'width=760,height=780');
+          if (!popup) toast('弹窗被浏览器拦了，请允许弹窗，或改用令牌登录', true);
+        }
+
+        window.addEventListener('message', function (event) {
+          if (!CONFIG.authBase) return;
+          if (event.origin !== CONFIG.authBase.replace(/\/$/, '')) return;
+          var data = event.data;
+          if (typeof data !== 'string' || data.indexOf('authorization:github:') !== 0) return;
+          var status = data.split(':')[2];
+          if (status !== 'success') { toast('GitHub 登录失败，请重试', true); return; }
+          var payload = {};
+          try { payload = JSON.parse(data.slice(('authorization:github:success:').length)); } catch (e) {}
+          if (payload.token) loginWithToken(payload.token);
+        });
+
+        /* ---------------- 列表 ---------------- */
+
+        function renderTabs() {
+          var tabs = $('tabs');
+          tabs.innerHTML = '';
+          for (var i = 0; i < COLLECTIONS.length; i++) {
+            (function (collection) {
+              var button = document.createElement('button');
+              button.type = 'button';
+              button.className = 'tab';
+              button.textContent = collection.label;
+              button.setAttribute('role', 'tab');
+              button.setAttribute('aria-selected', collection.id === state.collection.id ? 'true' : 'false');
+              button.onclick = function () {
+                state.collection = collection;
+                renderTabs();
+                loadList();
+              };
+              tabs.appendChild(button);
+            })(COLLECTIONS[i]);
+          }
+        }
+
+        function loadList() {
+          renderTabs();
+          show('list');
+          var list = $('list');
+          list.innerHTML = '<li class="empty">读取中…</li>';
+          var empty = $('listEmpty');
+          empty.hidden = true;
+          api('GET', '/repos/' + CONFIG.repo + '/contents/' + state.collection.dir + '?ref=' + CONFIG.branch, null, function (err, files) {
+            if (err) {
+              list.innerHTML = '';
+              empty.hidden = false;
+              empty.textContent = err.message;
+              return;
+            }
+            var items = [];
+            for (var i = 0; i < files.length; i++) {
+              if (/\.(md|mdx)$/i.test(files[i].name)) items.push(files[i]);
+            }
+            items.sort(function (a, b) { return a.name < b.name ? 1 : -1; });
+            state.list = items;
+            renderList(items);
+          });
+        }
+
+        function renderList(items) {
+          var list = $('list');
+          var empty = $('listEmpty');
+          list.innerHTML = '';
+          if (!items.length) {
+            empty.hidden = false;
+            empty.textContent = '这里还没有内容，点「新建」开始。';
+            return;
+          }
+          empty.hidden = true;
+          for (var i = 0; i < items.length; i++) {
+            (function (file) {
+              var li = document.createElement('li');
+              var button = document.createElement('button');
+              button.type = 'button';
+              button.className = 'item';
+              var name = document.createElement('b');
+              name.textContent = file.name.replace(/\.(md|mdx)$/i, '');
+              var meta = document.createElement('span');
+              meta.textContent = (file.size / 1024).toFixed(1) + ' KB';
+              button.appendChild(name);
+              button.appendChild(meta);
+              button.onclick = function () { openFile(file.path); };
+              li.appendChild(button);
+              list.appendChild(li);
+            })(items[i]);
+          }
+        }
+
+        /* ---------------- 编辑器 ---------------- */
+
+        function fieldNode(field) {
+          var wrap = document.createElement('div');
+          if (field.type === 'bool') {
+            var check = document.createElement('label');
+            check.className = 'check';
+            var box = document.createElement('input');
+            box.type = 'checkbox';
+            box.id = 'f_' + field.key;
+            check.appendChild(box);
+            check.appendChild(document.createTextNode(field.label));
+            wrap.appendChild(check);
+            return wrap;
+          }
+          var label = document.createElement('label');
+          label.setAttribute('for', 'f_' + field.key);
+          label.textContent = field.label;
+          wrap.appendChild(label);
+
+          var input;
+          if (field.type === 'textarea-short') {
+            input = document.createElement('textarea');
+            input.className = 'short';
+          } else {
+            input = document.createElement('input');
+            input.type = field.type === 'date' ? 'date' : 'text';
+          }
+          input.id = 'f_' + field.key;
+          wrap.appendChild(input);
+
+          if (field.hint) {
+            var hint = document.createElement('p');
+            hint.className = 'hint';
+            hint.textContent = field.hint;
+            wrap.appendChild(hint);
+          }
+          return wrap;
+        }
+
+        function renderForm(collection, values, body, isNew) {
+          var form = $('editForm');
+          form.innerHTML = '';
+
+          if (isNew) {
+            var filenameWrap = document.createElement('div');
+            var filenameLabel = document.createElement('label');
+            filenameLabel.setAttribute('for', 'f_filename');
+            filenameLabel.textContent = '文件名（英文，可留空自动生成）';
+            var filenameInput = document.createElement('input');
+            filenameInput.type = 'text';
+            filenameInput.id = 'f_filename';
+            filenameInput.placeholder = 'my-new-post';
+            filenameWrap.appendChild(filenameLabel);
+            filenameWrap.appendChild(filenameInput);
+            form.appendChild(filenameWrap);
+          }
+
+          var grid = document.createElement('div');
+          grid.className = 'grid';
+          for (var i = 0; i < collection.fields.length; i++) {
+            grid.appendChild(fieldNode(collection.fields[i]));
+          }
+          form.appendChild(grid);
+
+          if (collection.body) {
+            var bodyLabel = document.createElement('label');
+            bodyLabel.setAttribute('for', 'f_body');
+            bodyLabel.textContent = '正文（Markdown）';
+            form.appendChild(bodyLabel);
+            var area = document.createElement('textarea');
+            area.id = 'f_body';
+            form.appendChild(area);
+            area.value = body || '';
+
+            var uploadRow = document.createElement('p');
+            uploadRow.className = 'row';
+            uploadRow.style.marginTop = '0.7rem';
+            var picker = document.createElement('input');
+            picker.type = 'file';
+            picker.accept = 'image/*';
+            picker.id = 'f_image';
+            picker.style.display = 'none';
+            var uploadBtn = document.createElement('button');
+            uploadBtn.type = 'button';
+            uploadBtn.className = 'ghost small';
+            uploadBtn.textContent = '插入图片';
+            uploadBtn.onclick = function () { picker.click(); };
+            picker.onchange = function () { uploadImage(picker, area); };
+            uploadRow.appendChild(uploadBtn);
+            uploadRow.appendChild(picker);
+            form.appendChild(uploadRow);
+          }
+
+          for (var j = 0; j < collection.fields.length; j++) {
+            var field = collection.fields[j];
+            var el = $('f_' + field.key);
+            if (!el) continue;
+            var value = String(values[field.key] == null ? '' : values[field.key]);
+            if (field.type === 'bool') el.checked = value === 'true';
+            else if (field.key === 'tags') el.value = unwrap(value.replace(/^\[|\]$/g, ''));
+            else el.value = unwrap(value);
+          }
+
+          if (isNew) {
+            var slugInput = $('f_slug');
+            if (slugInput && !slugInput.value) {
+              var max = 0;
+              for (var k = 0; k < state.list.length; k++) {
+                var match = state.list[k].name.match(/^(\d+)\./);
+                if (match) max = Math.max(max, parseInt(match[1], 10));
+              }
+              slugInput.value = String(max + 1);
+            }
+            var dateInput = $('f_pubDate');
+            if (dateInput && !dateInput.value) dateInput.value = dateToday();
+          }
+        }
+
+        function readForm(collection) {
+          var values = {};
+          for (var i = 0; i < collection.fields.length; i++) {
+            var field = collection.fields[i];
+            var el = $('f_' + field.key);
+            if (!el) continue;
+            values[field.key] = field.type === 'bool' ? (el.checked ? 'true' : 'false') : el.value;
+          }
+          return values;
+        }
+
+        function openFile(path) {
+          api('GET', '/repos/' + CONFIG.repo + '/contents/' + path + '?ref=' + CONFIG.branch, null, function (err, file) {
+            if (err) { toast(err.message, true); return; }
+            var parsed = parseFront(b64decode(file.content));
+            state.current = { path: path, sha: file.sha, isNew: false, head: parsed.head };
+            $('editPath').textContent = path;
+            $('deleteBtn').hidden = false;
+            renderForm(state.collection, parsed.fields, parsed.body, false);
+            show('edit');
+          });
+        }
+
+        function startNew() {
+          state.current = { path: '', sha: '', isNew: true, head: [] };
+          $('editPath').textContent = '新内容 · ' + state.collection.label;
+          $('deleteBtn').hidden = true;
+          renderForm(state.collection, {}, '', true);
+          show('edit');
+        }
+
+        function save() {
+          var collection = state.collection;
+          var current = state.current;
+          if (!current) return;
+
+          var values = readForm(collection);
+          for (var i = 0; i < collection.fields.length; i++) {
+            var field = collection.fields[i];
+            if (field.required && !String(values[field.key] || '').trim()) {
+              toast('「' + field.label + '」不能为空', true);
+              return;
+            }
+          }
+
+          var text = buildFile(mergeHead(current.head || [], collection.fields, values), ($('f_body') || {}).value || '');
+
+          var path = current.path;
+          if (current.isNew) {
+            var base = safeName(($('f_filename') || {}).value) || safeName(values.slug) || ('entry-' + new Date().getTime());
+            path = collection.dir + '/' + base + '.' + (collection.ext || 'md');
+            current.path = path;
+          }
+
+          var payload = {
+            message: (current.isNew ? '后台：新增 ' : '后台：更新 ') + path,
+            content: b64encode(text),
+            branch: CONFIG.branch
+          };
+          if (current.sha) payload.sha = current.sha;
+
+          $('saveBtn').disabled = true;
+          api('PUT', '/repos/' + CONFIG.repo + '/contents/' + path, payload, function (err, data) {
+            $('saveBtn').disabled = false;
+            if (err) { toast('保存失败：' + err.message, true); return; }
+            current.sha = data && data.content ? data.content.sha : current.sha;
+            current.isNew = false;
+            $('deleteBtn').hidden = false;
+            $('editPath').textContent = path;
+            toast('已保存，两个站点大约两分钟后更新');
+            loadList();
+          });
+        }
+
+        function removeCurrent() {
+          var current = state.current;
+          if (!current || !current.path) return;
+          if (!window.confirm('删除「' + current.path + '」？这一步无法从后台撤销。')) return;
+          api('DELETE', '/repos/' + CONFIG.repo + '/contents/' + current.path, {
+            message: '后台：删除 ' + current.path,
+            sha: current.sha,
+            branch: CONFIG.branch
+          }, function (err) {
+            if (err) { toast('删除失败：' + err.message, true); return; }
+            toast('已删除');
+            state.current = null;
+            loadList();
+          });
+        }
+
+        function uploadImage(picker, area) {
+          var file = picker.files && picker.files[0];
+          if (!file) return;
+          if (file.size > 8 * 1024 * 1024) { toast('图片请控制在 8MB 以内', true); return; }
+          var reader = new FileReader();
+          reader.onload = function () {
+            var dataUrl = String(reader.result);
+            var base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+            var ext = (file.name.match(/\.[a-z0-9]+$/i) || ['.png'])[0].toLowerCase();
+            var fileName = new Date().getTime() + '-' + (safeName(file.name) || 'image') + ext;
+            var path = CONFIG.mediaFolder + '/' + fileName;
+            toast('上传中…');
+            api('PUT', '/repos/' + CONFIG.repo + '/contents/' + path, {
+              message: '后台：上传图片 ' + fileName,
+              content: base64,
+              branch: CONFIG.branch
+            }, function (err) {
+              if (err) { toast('上传失败：' + err.message, true); return; }
+              var markdown = '![](' + CONFIG.mediaFolder.replace(/^public/, '') + '/' + fileName + ')';
+              var start = area.selectionStart || area.value.length;
+              area.value = area.value.slice(0, start) + markdown + area.value.slice(start);
+              toast('图片已插入正文');
+              picker.value = '';
             });
           };
+          reader.readAsDataURL(file);
         }
+
+        /* ---------------- 配置与启动 ---------------- */
+
+        function loadConfig(done) {
+          var link = document.querySelector('link[rel="cms-config-url"]');
+          if (!link) { done(); return; }
+          var xhr = new XMLHttpRequest();
+          xhr.open('GET', link.href, true);
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+            var text = xhr.responseText || '';
+            var repo = text.match(/^\s*repo:\s*(\S+)/m);
+            var branch = text.match(/^\s*branch:\s*(\S+)/m);
+            var base = text.match(/^\s*base_url:\s*(\S+)/m);
+            var media = text.match(/^\s*media_folder:\s*(\S+)/m);
+            if (repo) CONFIG.repo = repo[1];
+            if (branch) CONFIG.branch = branch[1];
+            if (base) CONFIG.authBase = base[1];
+            if (media) CONFIG.mediaFolder = media[1];
+            done();
+          };
+          xhr.send(null);
+        }
+
+        function bind() {
+          $('oauthBtn').onclick = startOauth;
+          $('tokenToggle').onclick = function () { $('tokenPanel').hidden = !$('tokenPanel').hidden; };
+          $('tokenBtn').onclick = function () {
+            var value = $('tokenInput').value.replace(/\s/g, '');
+            if (!value) { toast('先填令牌', true); return; }
+            loginWithToken(value);
+          };
+          $('newBtn').onclick = startNew;
+          $('reloadBtn').onclick = loadList;
+          $('logoutBtn').onclick = function () {
+            state.token = '';
+            try { localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+            show('login');
+          };
+          $('backBtn').onclick = function () { state.current = null; loadList(); };
+          $('saveBtn').onclick = save;
+          $('deleteBtn').onclick = removeCurrent;
+          $('helpBtn').onclick = function () {
+            var dialog = $('helpDialog');
+            if (dialog.showModal) dialog.showModal();
+            else dialog.setAttribute('open', 'open');
+          };
+          $('helpClose').onclick = function () {
+            var dialog = $('helpDialog');
+            if (dialog.close) dialog.close();
+            else dialog.removeAttribute('open');
+          };
+        }
+
+        function start() {
+          bind();
+          loadConfig(function () {
+            if (!state.token) { show('login'); return; }
+            api('GET', '/user', null, function (err) {
+              if (err) { show('login'); return; }
+              loadList();
+            });
+          });
+        }
+
+        start();
       })();
-    </script>
-
-    <script>
-      type CmsWindow = Window & {
-        CMS_MANUAL_INIT?: boolean;
-        CMS?: {
-          init: (options: {
-            config: {
-              site_url: string;
-              display_url: string;
-              app_title: string;
-              logo: { src: string };
-            };
-          }) => Promise<void>;
-        };
-      };
-
-      const cmsWindow = window as CmsWindow;
-      const root = document.querySelector<HTMLDivElement>('#nc-root');
-      const loading = document.querySelector<HTMLElement>('.admin-loading');
-      const heading = document.querySelector<HTMLElement>('[data-admin-heading]');
-      const message = document.querySelector<HTMLElement>('[data-admin-message]');
-      const spinner = document.querySelector<HTMLElement>('.admin-spinner');
-      const retry = document.querySelector<HTMLButtonElement>('.admin-retry');
-
-      const withTimeout = async <T,>(operation: Promise<T>): Promise<T> => {
-        let timer: number | undefined;
-        try {
-          return await Promise.race<T>([
-            operation,
-            new Promise<T>((_resolve, reject) => {
-              timer = window.setTimeout(() => reject(new Error('CMS startup timeout')), 30_000);
-            }),
-          ]);
-        } finally {
-          window.clearTimeout(timer);
-        }
-      };
-
-      retry?.addEventListener('click', () => window.location.reload());
-
-      // 完整后台的脚本里有正则 lookbehind（语法级特性），Safari 16.4 / iOS 16.4 以下
-      // 连解析都过不去，垫片救不了。检测不到就直接引到极简后台。
-      // 这里必须用运行时拼接：写成 new RegExp('(?<=a)b') 会被压缩器折叠成字面量，
-      // 字面量在解析期就编译完了，绕过检测。
-      const lookbehindProbe = ['(?<', '=a)b'].join('');
-      const supportsModernSyntax = (() => {
-        try {
-          new RegExp(lookbehindProbe);
-          return true;
-        } catch {
-          return false;
-        }
-      })();
-
-      const legacyPanel = document.querySelector<HTMLElement>('#legacy-fallback');
-      const legacyTitle = document.querySelector<HTMLElement>('#legacy-title');
-      const legacyBody = document.querySelector<HTMLElement>('#legacy-body');
-      const legacyDetail = document.querySelector<HTMLElement>('#legacy-detail');
-      const forceFull = new URLSearchParams(window.location.search).has('full');
-      const forceFullButton = document.querySelector<HTMLButtonElement>('#force-full');
-      forceFullButton?.addEventListener('click', () => {
-        window.location.search = '?full=1';
-      });
-
-      // 收集加载与执行期的真实报错：后台起不来时把它显示出来，不用让人猜
-      const captured: string[] = [];
-      const record = (text: string) => {
-        const value = text.trim();
-        if (value && !captured.includes(value) && captured.length < 4) captured.push(value);
-      };
-      window.addEventListener('error', (event) => {
-        const message = event.message || event.error?.message || '';
-        const where = event.filename ? ` @ ${event.filename.split('/').pop()}:${event.lineno}` : '';
-        record(`${message}${where}`);
-      }, true);
-      window.addEventListener('unhandledrejection', (event) => {
-        record(`Promise 未处理：${event.reason?.message ?? String(event.reason)}`);
-      });
-
-      /** 起不来时统一走这里：直接给极简后台，别让人对着错误页发呆 */
-      const showLegacy = (title: string, body: string, detail?: string) => {
-        document.querySelector('.admin-loading')?.setAttribute('hidden', '');
-        if (legacyPanel) legacyPanel.hidden = false;
-        if (legacyTitle) legacyTitle.textContent = title;
-        if (legacyBody) legacyBody.innerHTML = body;
-        if (legacyDetail) {
-          const text = (detail ?? captured.join(' / ')).trim();
-          if (text) {
-            legacyDetail.textContent = `诊断信息：${text}`;
-            legacyDetail.hidden = false;
-          }
-        }
-      };
-
-      /** 挂一个脚本，成功走 onload，失败走 onerror */
-      const loadScript = (src: string) =>
-        new Promise<HTMLScriptElement>((resolve, reject) => {
-          const element = document.createElement('script');
-          element.src = src;
-          element.onload = () => resolve(element);
-          element.onerror = () => reject(new Error('脚本请求失败'));
-          document.head.append(element);
-        });
-
-      const startCms = async () => {
-        if (!root || !loading || !heading || !message || !spinner || !retry) return;
-
-        if (!supportsModernSyntax && !forceFull) {
-          showLegacy(
-            '这台设备的浏览器版本偏老',
-            '完整后台的脚本里有正则 lookbehind，属于语法级特性，iOS / iPadOS 16.4（Safari 16.4）以下无法解析，垫片也补不了。改用极简后台即可正常写作。',
-            `lookbehind 探测失败（${navigator.userAgent}）`,
-          );
-          return;
-        }
-
-        // CDN 脚本默认自动初始化；手动挂载才能等待失败并传入本次构建的站点地址。
-        cmsWindow.CMS_MANUAL_INIT = true;
-        const baseSrc = document.body.dataset.cmsScriptUrl ?? '';
-        let stage: 'load' | 'init' = 'load';
-        let lastError: unknown = null;
-
-        // 大脚本在弱网或旧设备上容易只下到一半（表现为脚本「加载成功」但里面什么都没执行）。
-        // 失败后带一个新参数再取一次，可以绕开半截缓存；两次都不行才降级。
-        for (let attempt = 1; attempt <= 2; attempt += 1) {
-          const src = attempt === 1 ? baseSrc : `${baseSrc}?retry=${Date.now()}`;
-          let script: HTMLScriptElement | null = null;
-          stage = 'load';
-          try {
-            script = await withTimeout(loadScript(src));
-            stage = 'init';
-            if (typeof cmsWindow.CMS?.init !== 'function') throw new Error('CMS API unavailable');
-            await withTimeout(cmsWindow.CMS.init({
-              config: {
-                site_url: document.body.dataset.siteUrl ?? '',
-                display_url: document.body.dataset.siteUrl ?? '',
-                app_title: document.body.dataset.appTitle ?? '',
-                logo: { src: document.body.dataset.logoUrl ?? '' },
-              },
-            }));
-
-            // init 只承诺应用已挂载；后续配置与登录错误由 CMS 展示，顶部保留恢复入口。
-            loading.hidden = true;
-            root.hidden = false;
-            return;
-          } catch (error) {
-            lastError = error;
-            script?.remove();
-            // 第二次也失败就降级，不再重试
-            if (attempt === 2) break;
-          }
-        }
-
-        root.hidden = true;
-        spinner.hidden = true;
-        const reason = lastError instanceof Error ? lastError.message : '';
-        const detail = [reason, ...captured].filter(Boolean).join(' / ');
-        showLegacy(
-          stage === 'load' ? '后台资源没能加载' : '这台设备跑不起完整后台',
-          stage === 'load'
-            ? '完整后台的脚本两次都没取到。可能是网络被挡了，或脚本太大在弱网下中断。可以直接用极简后台写作。'
-            : '完整后台重试两次都没能启动。常见原因：浏览器缺少它依赖的能力、无痕/隐私窗口禁用了本地存储、或设备内存不足。极简后台一样能发文章。',
-          detail,
-        );
-      };
-
-      void startCms();
     </script>
   </body>
 </html>
