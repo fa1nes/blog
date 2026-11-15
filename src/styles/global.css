@@ -709,6 +709,26 @@
   text-align: center;
 }
 
+/* 终端截图在小屏上必然缩得很小，点开看原尺寸是最省事的解法 */
+.prose a.shot {
+  display: block;
+  margin-block: 1.2em;
+  border-bottom: 0;
+  text-decoration: none;
+}
+.prose a.shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.prose a.shot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
 .prose table {
   display: block;
   width: 100%;
@@ -737,6 +757,18 @@
     :is(th, td) {
     padding-inline: 0.8em;
   }
+
+  /* nq / tq 的终端输出一行能到 80 列，窄屏缩小字号，少滚几次 */
+  .prose pre,
+  .prose .astro-code,
+  .prose .terminal pre {
+    font-size: 0.76rem;
+    line-height: 1.55;
+  }
+  .prose pre,
+  .prose .astro-code { tab-size: 4; }
+  .prose .terminal-title { font-size: 0.7rem; }
+  .prose .terminal-bar { padding-block: 0.45rem; }
 }
 
 .prose :is(th, td) {
