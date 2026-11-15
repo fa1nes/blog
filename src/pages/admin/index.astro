@@ -9,8 +9,9 @@ const siteRoot = new URL(
   import.meta.env.DEV ? Astro.url : (Astro.site ?? Astro.url),
 ).href;
 const appTitle = `${site.title} · 内容工作台`;
-const cmsScriptUrl = 'https://unpkg.com/@sveltia/cms@0.265.2/dist/sveltia-cms.js';
-const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY=';
+// CMS 脚本由 scripts/fetch-cms.mjs 在构建时下载到 public/admin/vendor/，
+// 同源加载：没有跨域、没有 SRI 失败，国内网络也不用等 unpkg。
+const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
 ---
 
 <!doctype html>
@@ -31,7 +32,6 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
     data-app-title={appTitle}
     data-logo-url={href('/brand-icon.png')}
     data-cms-script-url={cmsScriptUrl}
-    data-cms-script-integrity={cmsScriptIntegrity}
   >
     <header class="admin-brand">
       <a href={href('/')} class="admin-brand-link" aria-label="返回博客首页">
@@ -268,9 +268,9 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
     </style>
 
     <script is:inline>
-      // Sveltia CMS 用到了一批较新的 Web API（Promise.withResolvers / Object.groupBy /
-      // URL.canParse 等）。iOS 17.4 以下的 Safari、部分国产浏览器内核还没有这些，
-      // CMS.init() 会直接抛错，页面就停在「后台初始化失败」。这里做最小垫片。
+      // Sveltia CMS 用了一批较新的 Web API。iOS/iPadOS 16 的 Safari、部分国产浏览器
+      // 内核（X5、UC）都缺其中几个，CMS.init() 会直接抛错，页面停在「初始化失败」。
+      // 这里补到 iOS 16.0 可用：缺什么补什么，已有的不覆盖。
       (() => {
         const define = (target, key, value) => {
           try {
@@ -282,6 +282,8 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
           }
         };
 
+        /* ---------- Promise / Object ---------- */
+
         define(Promise, 'withResolvers', function withResolvers() {
           let resolve;
           let reject;
@@ -290,6 +292,10 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
             reject = rej;
           });
           return { promise, resolve, reject };
+        });
+
+        define(Promise, 'try', function promiseTry(callback) {
+          return new Promise((resolve) => resolve(callback()));
         });
 
         const groupBy = (toMap) => function group(items, callback) {
@@ -313,6 +319,8 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
           return Object.prototype.hasOwnProperty.call(object, key);
         });
 
+        /* ---------- URL / AbortSignal ---------- */
+
         define(URL, 'canParse', function canParse(url, base) {
           try {
             new URL(url, base);
@@ -322,17 +330,54 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
           }
         });
 
+        define(URL, 'parse', function parse(url, base) {
+          try {
+            return new URL(url, base);
+          } catch {
+            return null;
+          }
+        });
+
         define(AbortSignal, 'timeout', function timeout(ms) {
           const controller = new AbortController();
           setTimeout(() => controller.abort(new DOMException('TimeoutError', 'TimeoutError')), ms);
           return controller.signal;
         });
 
+        define(AbortSignal, 'any', function any(signals) {
+          const controller = new AbortController();
+          for (const signal of signals) {
+            if (signal.aborted) {
+              controller.abort(signal.reason);
+              break;
+            }
+            signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true });
+          }
+          return controller.signal;
+        });
+
+        /* ---------- Array ---------- */
+
+        define(Array.prototype, 'at', function at(index) {
+          const i = Math.trunc(index) || 0;
+          return this[i < 0 ? this.length + i : i];
+        });
         define(Array.prototype, 'toSorted', function toSorted(compare) {
           return [...this].sort(compare);
         });
         define(Array.prototype, 'toReversed', function toReversed() {
           return [...this].reverse();
+        });
+        define(Array.prototype, 'toSpliced', function toSpliced(start, deleteCount, ...items) {
+          const copy = [...this];
+          copy.splice(start, deleteCount, ...items);
+          return copy;
+        });
+        define(Array.prototype, 'with', function with_(index, value) {
+          const copy = [...this];
+          const i = Math.trunc(index) || 0;
+          copy[i < 0 ? copy.length + i : i] = value;
+          return copy;
         });
         define(Array.prototype, 'findLast', function findLast(callback) {
           for (let i = this.length - 1; i >= 0; i -= 1) if (callback(this[i], i, this)) return this[i];
@@ -342,16 +387,159 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
           for (let i = this.length - 1; i >= 0; i -= 1) if (callback(this[i], i, this)) return i;
           return -1;
         });
+        define(Array, 'fromAsync', async function fromAsync(items, mapFn) {
+          const out = [];
+          for await (const item of items) out.push(mapFn ? await mapFn(item, out.length) : item);
+          return out;
+        });
 
+        /* ---------- Set ---------- */
+
+        const setLike = (value) => new Set(value ?? []);
+        define(Set.prototype, 'union', function union(other) {
+          const out = new Set(this);
+          for (const value of setLike(other)) out.add(value);
+          return out;
+        });
+        define(Set.prototype, 'intersection', function intersection(other) {
+          const right = setLike(other);
+          const out = new Set();
+          for (const value of this) if (right.has(value)) out.add(value);
+          return out;
+        });
+        define(Set.prototype, 'difference', function difference(other) {
+          const right = setLike(other);
+          const out = new Set();
+          for (const value of this) if (!right.has(value)) out.add(value);
+          return out;
+        });
+        define(Set.prototype, 'symmetricDifference', function symmetricDifference(other) {
+          const right = setLike(other);
+          const out = new Set();
+          for (const value of this) if (!right.has(value)) out.add(value);
+          for (const value of right) if (!this.has(value)) out.add(value);
+          return out;
+        });
+        define(Set.prototype, 'isSubsetOf', function isSubsetOf(other) {
+          for (const value of this) if (!setLike(other).has(value)) return false;
+          return true;
+        });
+        define(Set.prototype, 'isSupersetOf', function isSupersetOf(other) {
+          for (const value of setLike(other)) if (!this.has(value)) return false;
+          return true;
+        });
+        define(Set.prototype, 'isDisjointFrom', function isDisjointFrom(other) {
+          for (const value of setLike(other)) if (this.has(value)) return false;
+          return true;
+        });
+
+        /* ---------- String ---------- */
+
+        const isWellFormed = (string) => {
+          for (let i = 0; i < string.length; i += 1) {
+            const code = string.charCodeAt(i);
+            if (code >= 0xd800 && code <= 0xdbff) {
+              const next = string.charCodeAt(i + 1);
+              if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
+              i += 1;
+            } else if (code >= 0xdc00 && code <= 0xdfff) {
+              return false;
+            }
+          }
+          return true;
+        };
+        define(String.prototype, 'isWellFormed', function isWellFormed_() {
+          return isWellFormed(this);
+        });
+        define(String.prototype, 'toWellFormed', function toWellFormed() {
+          let out = '';
+          for (let i = 0; i < this.length; i += 1) {
+            const code = this.charCodeAt(i);
+            if (code >= 0xd800 && code <= 0xdbff) {
+              const next = this.charCodeAt(i + 1);
+              out += next >= 0xdc00 && next <= 0xdfff ? this[i] + this[i + 1] : '\uFFFD';
+              i += 1;
+            } else {
+              out += code >= 0xdc00 && code <= 0xdfff ? '\uFFFD' : this[i];
+            }
+          }
+          return out;
+        });
+
+        /* ---------- TypedArray 与二进制 ---------- */
+
+        define(Uint8Array.prototype, 'toBase64', function toBase64() {
+          let binary = '';
+          for (const byte of this) binary += String.fromCharCode(byte);
+          return btoa(binary);
+        });
+        define(Uint8Array, 'fromBase64', function fromBase64(text) {
+          const binary = atob(text);
+          const out = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i += 1) out[i] = binary.charCodeAt(i);
+          return out;
+        });
+        define(Uint8Array.prototype, 'toHex', function toHex() {
+          let out = '';
+          for (const byte of this) out += byte.toString(16).padStart(2, '0');
+          return out;
+        });
+        define(Uint8Array, 'fromHex', function fromHex(text) {
+          const out = new Uint8Array(text.length / 2);
+          for (let i = 0; i < out.length; i += 1) out[i] = parseInt(text.slice(i * 2, i * 2 + 2), 16);
+          return out;
+        });
+
+        /* ---------- 全局工具 ---------- */
+
+        // 不用 JSON 兜底：Sveltia 会克隆含 Map/Set/Date 的状态，JSON 会悄悄改变结构。
         if (typeof structuredClone !== 'function') {
-          window.structuredClone = (value) => JSON.parse(JSON.stringify(value));
+          const clone = (value, seen) => {
+            if (value === null || typeof value !== 'object') return value;
+            if (seen.has(value)) return seen.get(value);
+            if (value instanceof Date) return new Date(value.getTime());
+            if (value instanceof RegExp) return new RegExp(value.source, value.flags);
+            if (value instanceof Map) {
+              const map = new Map();
+              seen.set(value, map);
+              for (const [key, item] of value) map.set(clone(key, seen), clone(item, seen));
+              return map;
+            }
+            if (value instanceof Set) {
+              const set = new Set();
+              seen.set(value, set);
+              for (const item of value) set.add(clone(item, seen));
+              return set;
+            }
+            if (ArrayBuffer.isView(value)) return value.slice();
+            if (Array.isArray(value)) {
+              const list = [];
+              seen.set(value, list);
+              for (const item of value) list.push(clone(item, seen));
+              return list;
+            }
+            const out = Object.create(Object.getPrototypeOf(value));
+            seen.set(value, out);
+            for (const key of Object.keys(value)) out[key] = clone(value[key], seen);
+            return out;
+          };
+          window.structuredClone = (value) => clone(value, new WeakMap());
         }
+
         if (window.crypto && typeof window.crypto.randomUUID !== 'function') {
           define(window.crypto, 'randomUUID', () =>
             '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, (c) =>
               (c ^ (Math.random() * 16) >> (c / 4)).toString(16),
             ),
           );
+        }
+
+        if (typeof reportError !== 'function') {
+          window.reportError = (error) => {
+            setTimeout(() => {
+              throw error;
+            });
+          };
         }
       })();
     </script>
@@ -402,8 +590,6 @@ const cmsScriptIntegrity = 'sha256-GuQH7PO73MpnWIBlcZr96FRthbW6Ej+DCRwp5za0fUY='
         cmsWindow.CMS_MANUAL_INIT = true;
         const script = document.createElement('script');
         script.src = document.body.dataset.cmsScriptUrl ?? '';
-        script.integrity = document.body.dataset.cmsScriptIntegrity ?? '';
-        script.crossOrigin = 'anonymous';
         let stage: 'load' | 'init' = 'load';
 
         try {

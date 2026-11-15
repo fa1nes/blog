@@ -1,10 +1,13 @@
 import process from 'node:process';
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'parse5';
 
-const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const dist = join(root, 'dist');
+// 后台 CMS 版本在下载脚本里锁定，验收时与 config.yml 的 schema 版本对齐
+const cmsVersion = (await readFile(join(root, 'scripts', 'fetch-cms.mjs'), 'utf8')).match(/const VERSION = '([\d.]+)'/)?.[1];
 const required = [
   'index.html', '404.html', 'posts/index.html', 'notes/index.html',
   'tags/index.html', 'categories/index.html', 'archive/index.html',
@@ -193,13 +196,17 @@ async function checkBuild() {
     if (file === 'admin/index.html') {
       const body = nodes.find(({ tag }) => tag === 'body');
       if (body?.attrs['data-site-url'] !== siteRoot.href) errors.push(`${file}：CMS 站点地址与 canonical 不一致`);
-      const cmsVersion = body?.attrs['data-cms-script-url']?.match(/^https:\/\/unpkg\.com\/@sveltia\/cms@(\d+\.\d+\.\d+)\/dist\/sveltia-cms\.js$/)?.[1];
-      if (!cmsVersion) errors.push(`${file}：CMS 脚本必须固定到完整版本号`);
-      else if (!cmsConfig.includes(`$schema=https://unpkg.com/@sveltia/cms@${cmsVersion}/schema/sveltia-cms.json`)) {
-        errors.push(`${file}：CMS 脚本与配置 schema 版本不一致`);
+      const cmsScriptUrl = body?.attrs['data-cms-script-url'] ?? '';
+      // 脚本由 scripts/fetch-cms.mjs 自托管，同源加载；版本与哈希在下载脚本里锁定。
+      const localCms = new URL(cmsScriptUrl, pageUrl).href === new URL('admin/vendor/sveltia-cms.js', siteRoot).href;
+      if (!localCms) {
+        errors.push(`${file}：CMS 脚本应指向自托管的 admin/vendor/sveltia-cms.js`);
+      } else {
+        const size = await stat(join(dist, 'admin', 'vendor', 'sveltia-cms.js')).then((s) => s.size, () => 0);
+        if (size < 500_000) errors.push(`${file}：自托管的 CMS 脚本缺失或过小（${size} 字节）`);
       }
-      if (!/^sha256-[A-Za-z0-9+/]{43}=$/.test(body?.attrs['data-cms-script-integrity'] ?? '')) {
-        errors.push(`${file}：CMS 脚本缺少有效的 SHA-256 完整性校验`);
+      if (cmsVersion && !cmsConfig.includes(`@sveltia/cms@${cmsVersion}/schema/sveltia-cms.json`)) {
+        errors.push(`${file}：CMS 配置 schema 版本与 fetch-cms.mjs 锁定的 ${cmsVersion} 不一致`);
       }
       const config = nodes.find((element) => hasRel(element, 'cms-config-url'));
       if (!config || new URL(config.attrs.href ?? '', pageUrl).href !== new URL('admin/config.yml', siteRoot).href) {

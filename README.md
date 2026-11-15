@@ -130,7 +130,7 @@ npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑�
 
 #### 一、网页后台
 
-用表单填写标题、分类、标签、封面，正文用编辑器写，保存后自动提交到仓库并触发部署。手机浏览器也能用，但 iOS 17.4 以下的 Safari 需要靠入口页的垫片兜底，打不开时见下方「打不开怎么办」。
+用表单填写标题、分类、标签、封面，正文用编辑器写，保存后自动提交到仓库并触发部署。手机、iPad 都能用：入口页内置了一批垫片，iOS / iPadOS 16 及以上的 Safari 可以正常打开后台，打不开时见下方「打不开怎么办」。
 
 地址是**站点地址后面加 `/admin/`**：
 
@@ -150,7 +150,8 @@ npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑�
 
 **打不开怎么办**：
 
-- 页面停在「后台初始化失败」时，提示里会带上真实原因。Sveltia 依赖 `Promise.withResolvers`、`Object.groupBy`、`URL.canParse` 等较新 API，iOS 17.4 以下的 Safari 缺这些；入口页已经内置最小垫片，正常情况下不必再管。
+- 页面停在「后台初始化失败」时，提示里会带上真实原因。Sveltia 用到 `Promise.withResolvers`、`Object.groupBy`、`URL.canParse`、`Array.fromAsync`、`Set.prototype.union`、`String.prototype.isWellFormed` 等较新 API；入口页内置了覆盖到 iOS 16.0 的垫片，正常情况下不必再管。
+- CMS 脚本不走 CDN，构建时由 `scripts/fetch-cms.mjs` 下载到 `public/admin/vendor/`（版本与 sha256 写死在脚本里），同源加载，国内网络也不用等 unpkg。
 - 实在打不开，或者不想折腾令牌，直接打开 [github.dev/fa1nes/blog](https://github.dev/fa1nes/blog)：浏览器里就是 VS Code，用 GitHub 账号登录即可编辑、传图、提交，走同一条部署流水线。
 
 **启用前只需要改一处**：把 `public/admin/config.yml` 里的 `repo` 改成你的仓库：
@@ -604,7 +605,7 @@ npx wrangler pages deploy dist --project-name=<项目>
 - 部署到 `user.github.io/blog/` 时，`BASE_PATH` 自动为 `/blog`
 - 绑定了自定义域名时，`BASE_PATH` 自动为空
 
-`BASE_PATH=''` 明确表示根路径，会覆盖配置文件中的 `/blog`。正文 Markdown 的根路径链接与上传图片也会在构建时补齐部署子路径：内容里使用 `/posts/文章别名/`、`/uploads/图片.png` 等站点内路径，不要写入 `/blog` 部署前缀。后台的站点与预览地址从本次构建读取；CMS 脚本固定版本并校验 SRI，加载失败会显示恢复入口。
+`BASE_PATH=''` 明确表示根路径，会覆盖配置文件中的 `/blog`。正文 Markdown 的根路径链接与上传图片也会在构建时补齐部署子路径：内容里使用 `/posts/文章别名/`、`/uploads/图片.png` 等站点内路径，不要写入 `/blog` 部署前缀。后台的站点与预览地址从本次构建读取；CMS 脚本自托管、版本与哈希在 `scripts/fetch-cms.mjs` 里锁定，加载失败会显示恢复入口。
 
 `npm run build` 在生成页面和搜索索引后，自动验收产物中的主路由、站内链接和资源、canonical、两个 RSS、Pagefind 与后台配置。现有部署工作流调用同一命令，任一环节失败都不会上传发布。回滚时通过 GitHub revert 对应提交并推送，重新走同一条构建链路。
 
