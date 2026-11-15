@@ -101,17 +101,18 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
     <!-- 浏览器太老（iOS < 16.4）时的兜底：完整后台的脚本里有正则 lookbehind，
          那是语法级特性，垫片解决不了，只能换一个极简编辑器。 -->
     <main class="admin-legacy" id="legacy-fallback" hidden>
-      <h1>这台设备的浏览器版本偏老</h1>
-      <p>
-        完整后台用到了正则 lookbehind 等较新的语法，iOS / iPadOS 16.4（Safari 16.4）以下无法解析，
-        垫片也补不了。可以改用极简后台：只有一个输入框，改 Markdown 后保存，同样会提交到仓库并触发部署。
+      <h1 id="legacy-title">这台设备的浏览器版本偏老</h1>
+      <p id="legacy-body">
+        完整后台依赖较新的浏览器能力，这台设备跑不起来。可以改用极简后台：只有一个 Markdown 输入框，
+        保存后同样提交到仓库并触发部署。
       </p>
       <p class="admin-legacy-actions">
         <a class="admin-legacy-primary" href={href('/admin/lite/')}>进入极简后台</a>
-        <button class="admin-legacy-secondary" type="button" id="force-full">仍然试试完整后台</button>
+        <button class="admin-legacy-secondary" type="button" id="force-full">重新加载完整后台</button>
       </p>
+      <p class="admin-legacy-detail" id="legacy-detail" hidden></p>
       <p class="admin-legacy-note">
-        极简后台需要粘贴一个 GitHub 令牌（只读改这一个仓库），首次填一次即可。也可以直接改仓库里的文件。
+        极简后台需要粘贴一个 GitHub 令牌（只读改这一个仓库），首次填一次即可。也可以直接编辑仓库里的 Markdown。
       </p>
     </main>
     <div id="nc-root" hidden></div>
@@ -301,6 +302,16 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
       .admin-legacy-primary { background: #268358; color: #fff; }
       .admin-legacy-secondary { background: #eef2f5; color: #35434f; }
       .admin-legacy-note { margin: 1rem 0 0; font-size: 0.85rem; color: #6b7885; }
+      .admin-legacy-detail {
+        margin: 1rem 0 0;
+        padding: 0.7rem 0.85rem;
+        border-radius: 0.6rem;
+        background: #f4f6f8;
+        color: #55636f;
+        font-size: 0.8rem;
+        line-height: 1.6;
+        word-break: break-word;
+      }
       @keyframes admin-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) {
         .admin-spinner { animation: none; }
@@ -654,19 +665,54 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
       })();
 
       const legacyPanel = document.querySelector<HTMLElement>('#legacy-fallback');
+      const legacyTitle = document.querySelector<HTMLElement>('#legacy-title');
+      const legacyBody = document.querySelector<HTMLElement>('#legacy-body');
+      const legacyDetail = document.querySelector<HTMLElement>('#legacy-detail');
       const forceFull = new URLSearchParams(window.location.search).has('full');
       const forceFullButton = document.querySelector<HTMLButtonElement>('#force-full');
       forceFullButton?.addEventListener('click', () => {
         window.location.search = '?full=1';
       });
 
+      // 收集加载与执行期的真实报错：后台起不来时把它显示出来，不用让人猜
+      const captured: string[] = [];
+      const record = (text: string) => {
+        const value = text.trim();
+        if (value && !captured.includes(value) && captured.length < 4) captured.push(value);
+      };
+      window.addEventListener('error', (event) => {
+        const message = event.message || event.error?.message || '';
+        const where = event.filename ? ` @ ${event.filename.split('/').pop()}:${event.lineno}` : '';
+        record(`${message}${where}`);
+      }, true);
+      window.addEventListener('unhandledrejection', (event) => {
+        record(`Promise 未处理：${event.reason?.message ?? String(event.reason)}`);
+      });
+
+      /** 起不来时统一走这里：直接给极简后台，别让人对着错误页发呆 */
+      const showLegacy = (title: string, body: string, detail?: string) => {
+        document.querySelector('.admin-loading')?.setAttribute('hidden', '');
+        if (legacyPanel) legacyPanel.hidden = false;
+        if (legacyTitle) legacyTitle.textContent = title;
+        if (legacyBody) legacyBody.innerHTML = body;
+        if (legacyDetail) {
+          const text = (detail ?? captured.join(' / ')).trim();
+          if (text) {
+            legacyDetail.textContent = `诊断信息：${text}`;
+            legacyDetail.hidden = false;
+          }
+        }
+      };
+
       const startCms = async () => {
         if (!root || !loading || !heading || !message || !spinner || !retry) return;
 
         if (!supportsModernSyntax && !forceFull) {
-          // 老浏览器：直接给极简后台，别让用户对着「初始化失败」发呆
-          loading.hidden = true;
-          if (legacyPanel) legacyPanel.hidden = false;
+          showLegacy(
+            '这台设备的浏览器版本偏老',
+            '完整后台的脚本里有正则 lookbehind，属于语法级特性，iOS / iPadOS 16.4（Safari 16.4）以下无法解析，垫片也补不了。改用极简后台即可正常写作。',
+            `lookbehind 探测失败（${navigator.userAgent}）`,
+          );
           return;
         }
 
@@ -701,14 +747,16 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
           script.remove();
           root.hidden = true;
           spinner.hidden = true;
-          heading.textContent = '内容工作台未能启动';
-          // 把真实的失败原因带出来，遇到浏览器兼容问题时不用猜
-          const detail = error instanceof Error && error.message ? `：${error.message}` : '';
-          message.textContent = stage === 'load'
-            ? `后台资源未能加载${detail}。可能是网络连接或资源校验失败，请检查网络后重新加载，也可从右上角查看登录与恢复说明。`
-            : `后台初始化失败${detail}。可以重新加载；若反复停在这里，改用极简后台（/admin/lite/），或直接编辑仓库里的 Markdown。`;
-          loading.setAttribute('role', 'alert');
-          retry.hidden = false;
+          const reason = error instanceof Error && error.message ? error.message : '';
+          const detail = [reason, ...captured].filter(Boolean).join(' / ');
+          // 不管失败在哪个阶段，都直接给一条能用的路，而不是一个死胡同
+          showLegacy(
+            stage === 'load' ? '后台资源没能加载' : '这台设备跑不起完整后台',
+            stage === 'load'
+              ? '完整后台的脚本没有取到。可能是网络被挡了，也可能是脚本太大在弱网下中断。可以直接用极简后台写作。'
+              : '完整后台初始化时出错了。常见原因有三个：浏览器缺少它依赖的某个能力、在无痕/隐私窗口里被禁用了本地存储、或者页面是旧缓存。先试「重新加载完整后台」；还不行就用极简后台，功能一样能发文章。',
+            detail,
+          );
           // CMS.init 每页只执行一次，重试必须重载页面，不能再次调用 init。
         } finally {
           script.onload = null;
