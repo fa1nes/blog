@@ -13,7 +13,7 @@ const required = [
   'friends/index.html', 'guestbook/index.html', 'about/index.html',
   'search/index.html', 'admin/index.html', 'admin/config.yml',
   'rss.xml', 'notes/rss.xml', 'robots.txt', 'pagefind/pagefind.js',
-  'favicon.png', 'icon-64.png', 'avatar.png', 'brand-icon.png', 'apple-touch-icon.png',
+  'favicon.png', 'icon-64.png', 'avatar.webp', 'brand-icon.png', 'apple-touch-icon.png',
   'site.webmanifest', 'icon-192.png', 'icon-512.png',
 ];
 

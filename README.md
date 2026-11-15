@@ -113,8 +113,6 @@ npm test            # 内容、搜索、写作与发布工具的回归测试
 npm run check       # 先跑测试，再做 TypeScript 类型检查
 
 npm run setup       # 交互式初始化（第一次用，或想重新配置时）
-npm run new "标题"   # 新建一篇文章
-npm run publish <文件>   # 通过 GitHub API 直接发布
 npm run content:pull # 从私有内容仓库拉文章与图片（需要 CONTENT_REPO_TOKEN）
 npm run og          # 重新生成默认分享图、站点图标和各篇文章的分享图
 npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑一遍）
@@ -126,7 +124,7 @@ npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑�
 
 ## 写作
 
-### 三种方式
+### 两种方式
 
 #### 一、网页后台
 
@@ -177,61 +175,11 @@ npm run og:posts    # 只重渲染文章的分享图（构建时也会自动跑�
 
 站点标题、导航、社交链接这类配置在 `src/site.config.ts` 里，属于代码不走后台，改完提交一次即可。
 
-#### 二、命令行
+#### 二、直接改文件
 
-```bash
-npm run new "给博客加个搜索" add-search
-```
+文章在内容仓库 `fa1nes/blog-content`（私有）：改 `src/content/posts/` 下的 Markdown，push 即可，两个站点会自动重建。
 
-在 `src/content/posts/` 下生成一个填好 frontmatter 的文件。第二个参数是网址别名（也就是文件名），省略时会从标题推导 —— 中文标题推不出合适的英文名，这时会退回日期形式并提示你手动指定。
-
-标题里的冒号、引号和 `#` 会按普通文字保存；空标题和换行会被拒绝。相同别名的 `.md` 或 `.mdx` 已存在时会报错，并发创建也不会覆盖已有文章。
-
-新建的文章默认是 `draft: true`，本地能预览但不会被发布，写完把它删掉即可。
-
-```bash
-npm run publish src/content/posts/add-search.md
-```
-
-调用 GitHub Git Data API，把文章和配图合并为一个提交，CI 随后自动部署。适合在没有 git 环境的地方发布，比如手机上的自动化流程。需要的环境变量：
-
-| 变量 | 说明 |
-| --- | --- |
-| `GITHUB_TOKEN` | 必填，有仓库 Contents 写权限的令牌 |
-| `GITHUB_REPOSITORY` | 可选，`owner/repo`。省略时从 git remote 自动推断 |
-| `GITHUB_BRANCH` | 可选，默认 `main`，也可以用 `--branch` 参数指定 |
-
-可以指定多个文件（比如文章加配图），用 `-m` 自定义提交信息。单文件最多 20 MiB，每批最多 50 个文件、合计 50 MiB；重复路径会被拒绝。内容没有变化时跳过提交。
-
-```bash
-npm run publish -- src/content/posts/add-search.md src/assets/cover.jpg -m "发布文章及封面"
-```
-
-发布按下面的顺序进行：
-
-1. 一次读取整批文件，检查目录、符号链接、大小和读取期间的变化。
-2. 从同一份内存快照解析 Markdown/MDX 的 frontmatter，使用与 Astro 共用的内容 schema 校验。字段缺失、日期或类型错误、非法 slug、frontmatter 语法错误都会在首次网络请求前失败。
-3. 基于同一个远端父提交创建所有文件对象、一棵 tree 和一个 commit。
-4. 仅执行一次 `force: false` 的分支更新，让文章和资源同时可见。之前任一步失败，分支都不引用本批对象，整批不发布，无需逐文件回滚。GitHub 可能保留暂未引用的 Git 对象，它们不会出现在分支或网站中。
-
-远端并发提交会让最后一步被拒绝，脚本不会覆盖他人的修改。更新超时、5xx 或响应异常时，脚本只回读分支：确认为本次 SHA 就报告整批成功；仍是旧 SHA、已变成其他 SHA 或回读失败，则明确报告结果尚未确认并输出核对信息。超时请求可能仍在服务端处理，**不要直接重复发布或强制回滚**。
-
-这里的原子性边界是仓库分支更新。schema 前置校验覆盖本批内容字段；MDX 编译、图片处理、全站路由冲突和构建产物仍由 CI 验收。CI 失败时不会部署新产物，已经成功更新的源码提交仍保留，可修复后再次推送，或另建 revert 提交回退。
-
-#### 发布验收
-
-运行 `npm run test:publish` 可用虚拟 GitHub 接口复验关键行为，无需令牌，也不会修改远端：
-
-- 成功批次包含两个文件，恰好一个 commit、一次非强制分支更新。
-- schema 无效、路径重复或文件缺失时，网络请求次数为零。
-- 在读取分支、父提交、两个 blob、tree、commit、分支更新各阶段注入拒绝，分支始终保留原来的完整内容。
-- 模拟更新已生效但响应丢失、更新尚未确认、并发提交和回读失败，验证只回读一次，不重复写入或回滚并发修改。
-
-真实接口验收可发布一篇已校验文章及其配图，核对输出 SHA 的文件清单只包含本批内容，再查看该 SHA 对应的 Actions 构建与部署。故障注入只在虚拟接口中进行，不能据此声称已模拟 GitHub 服务端的真实故障。
-
-#### 三、直接改文件
-
-用任何编辑器改 `src/content/posts/` 下的 Markdown，`git push` 即可。在线改的话，GitHub 仓库页面按 <kbd>.</kbd> 键能直接打开网页版 VS Code。
+不想开编辑器的话，打开 [github.dev/fa1nes/blog-content](https://github.dev/fa1nes/blog-content)，浏览器里就是一个 VS Code，用 GitHub 账号登录即可编辑、传图、提交。
 
 ### 文件与 frontmatter
 
@@ -692,8 +640,7 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 │   ├── setup.mjs            # npm run setup，交互式初始化
 │   ├── generate-og.mjs      # 默认分享图与 PNG 图标
 │   ├── post-og.mjs          # 每篇文章的分享图（构建时自动执行）
-│   ├── new-post.mjs         # npm run new
-│   └── publish-post.mjs     # npm run publish
+│   └── fetch-content.mjs    # 构建前拉取私有内容仓库
 ├── workers/
 │   └── cms-auth/            # 可选：后台 GitHub OAuth 代理（Cloudflare Worker）
 ├── src/

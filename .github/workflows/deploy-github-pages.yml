@@ -3,6 +3,10 @@ name: 部署到 GitHub Pages
 on:
   push:
     branches: [main]
+    # 只改文档不用重新构建整站
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   # 内容仓库 push 后由它发 repository_dispatch 触发本工作流
   repository_dispatch:
     types: [content-updated]

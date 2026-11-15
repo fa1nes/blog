@@ -74,7 +74,8 @@ function buildSvg({ title, subtitle, address, icon }) {
 // 分享图显示完整站点路径，避免子路径部署只显示 GitHub 用户主页。
 const base = String(process.env.BASE_PATH ?? site.base).trim().replace(/^\/+|\/+$/g, '');
 const siteRoot = new URL(base ? `/${base}/` : '/', process.env.SITE_URL || site.url);
-const icon = await readFile(path.join(root, 'public/avatar.png'));
+const avatarSource = path.join(root, 'public/avatar.png');
+const icon = await readFile(avatarSource);
 const brandIcon = await readFile(path.join(root, 'public/brand-icon.png'));
 
 const svg = buildSvg({
@@ -124,4 +125,15 @@ for (const [name, size] of [
     .png({ compressionLevel: 9, palette: true })
     .toFile(output);
   console.log(`已写入 public/${name}（${size}x${size}）`);
+}
+
+// 头像只用于页面上的小尺寸展示（48~64px），原图是 256px PNG，一张就 130KB+。
+// 额外派生一版 160px 的 WebP：视觉上没差别，体积降到 1/10。
+for (const [name, size] of [['avatar.webp', 160]]) {
+  const output = path.join(root, 'public', name);
+  const info = await sharp(avatarSource)
+    .resize(size, size, { fit: 'cover' })
+    .webp({ quality: 82, alphaQuality: 90 })
+    .toFile(output);
+  console.log(`已写入 public/${name}（${size}x${size}，${info.size} 字节）`);
 }

@@ -82,7 +82,9 @@ export const author = {
   /** 首页展示的一句话简介 */
   bio: '把问题的排查过程和解决办法写下来。',
   /** 头像，放在 public/ 目录下，或使用完整外链 */
-  avatar: '/avatar.png',
+  // 页面展示用的是 160px 的 WebP（约 9KB）；原图 public/avatar.png 只作 og 与派生源，
+  // 换头像时替换 avatar.png 再跑一次 npm run og。
+  avatar: '/avatar.webp',
   /** 个人主页，留空则不生成链接 */
   url: 'https://github.com/fa1nes',
   /** 邮箱，用于 SEO 结构化数据（可留空） */

@@ -16,14 +16,11 @@
     "check": "npm test && astro check",
     "check:build": "node scripts/check-build.mjs",
     "test": "node --test",
-    "test:publish": "node --test scripts/publish-post.test.mjs",
     "test:json-ld": "node --test scripts/json-ld.test.mjs",
     "sync": "astro sync",
     "setup": "node scripts/setup.mjs",
     "og": "node scripts/generate-og.mjs && node scripts/post-og.mjs",
     "og:posts": "node scripts/post-og.mjs",
-    "new": "node scripts/new-post.mjs",
-    "publish": "node scripts/publish-post.mjs",
     "astro": "astro"
   },
   "dependencies": {
