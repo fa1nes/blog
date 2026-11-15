@@ -622,6 +622,7 @@ Windows 的 Git Bash 会把以 `/` 开头的值当成路径改写（`/blog` 会�
 ```
 .
 ├── .github/workflows/       # CI 与部署工作流
+├── design/                  # 设计源图（不进站点）：brand-icon.png、avatar.png
 ├── public/                  # 原样复制到产物根目录的静态文件
 │   ├── admin/config.yml     # ★ 网页后台配置：改里面的 repo 即可启用
 │   ├── uploads/             # 后台上传的图片

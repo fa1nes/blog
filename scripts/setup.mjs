@@ -307,7 +307,7 @@ console.log(`
     npm run build    生产构建
 
   还需要手动处理：
-    · 换掉 public/brand-icon.png 与 public/avatar.png
+    · 换掉 design/brand-icon.png 与 design/avatar.png
     · LICENSE 里的版权人改成 ${a.authorName}
     · 想开评论就按 README 配置 Giscus
     · docs/ 里的预览截图属于模板说明，可以删掉

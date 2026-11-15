@@ -157,7 +157,7 @@ function toISODate(value) {
 
 const base = String(process.env.BASE_PATH ?? site.base).trim().replace(/^\/+|\/+$/g, '');
 const siteRoot = new URL(base ? `/${base}/` : '/', process.env.SITE_URL || site.url);
-const markPath = path.join(root, 'public/brand-icon.png');
+const markPath = path.join(root, 'design/brand-icon.png');
 const markSource = await readFile(markPath);
 const mark = `data:image/png;base64,${markSource.toString('base64')}`;
 // 换标识后所有卡片都得重画，所以缓存要同时参考图标的修改时间

@@ -1,12 +1,12 @@
 /**
- * 从站点配置、brand-icon.png 与 avatar.png 生成社交分享图与 PNG 站点图标。
+ * 从站点配置、design/brand-icon.png 与 design/avatar.png 生成社交分享图与 PNG 站点图标。
  *
  * 为什么需要这个脚本：X、Facebook、微信等平台抓取 og:image 时都不支持 SVG，
  * 必须提供 PNG 或 JPG。这里从 src/site.config.ts 读取站点信息生成 SVG，
  * 再用 sharp 渲染成 1200x630 的 PNG。
  *
  * 使用：npm run og
- * 改过站点标题、副标题、地址或 brand-icon.png / avatar.png 之后跑一次即可。
+ * 改过站点标题、副标题、地址或 design 下的两张源图之后跑一次即可。
  *
  * 说明：文字由系统字体渲染，Windows 与 macOS 都自带中文字体。
  * 想换设计直接改下面的模板，或者自己做一张 1200x630 的图覆盖掉输出文件。
@@ -74,9 +74,9 @@ function buildSvg({ title, subtitle, address, icon }) {
 // 分享图显示完整站点路径，避免子路径部署只显示 GitHub 用户主页。
 const base = String(process.env.BASE_PATH ?? site.base).trim().replace(/^\/+|\/+$/g, '');
 const siteRoot = new URL(base ? `/${base}/` : '/', process.env.SITE_URL || site.url);
-const avatarSource = path.join(root, 'public/avatar.png');
+const avatarSource = path.join(root, 'design/avatar.png');
 const icon = await readFile(avatarSource);
-const brandIcon = await readFile(path.join(root, 'public/brand-icon.png'));
+const brandIcon = await readFile(path.join(root, 'design/brand-icon.png'));
 
 const svg = buildSvg({
   title: site.title,

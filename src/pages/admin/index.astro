@@ -21,7 +21,7 @@ const siteRoot = new URL(href('/'), Astro.site ?? Astro.url).href;
     <link rel="cms-config-url" href={href('/admin/config.yml')} type="application/yaml" />
     <title>{appTitle}</title>
   </head>
-  <body data-site-url={siteRoot} data-app-title={appTitle} data-logo-url={href('/brand-icon.png')}>
+  <body data-site-url={siteRoot} data-app-title={appTitle}>
     <header class="bar">
       <a class="brand" href={href('/')} aria-label="返回博客首页">
         <img src={href('/icon-64.png')} alt="" width="30" height="30" />
