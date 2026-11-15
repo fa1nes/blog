@@ -81,7 +81,7 @@
 
 ## 本地开始
 
-需要 Node.js 22.18 或更高版本（低于这个版本无法直接 import `.ts` 配置，构建脚本会报 `ERR_UNKNOWN_FILE_EXTENSION`）。
+需要 Node.js 24（Astro 7.4 起最低要求 22.23.4；仓库里的 `.node-version` 固定为 24.11.0，Cloudflare Pages 会读它）。
 
 ```bash
 git clone https://github.com/fa1nes/blog.git my-blog
@@ -525,7 +525,7 @@ npm run dev
    | 构建输出目录 | `dist` |
    | 环境变量 | `SITE_URL=https://<项目>.pages.dev`（或你的域名） |
 
-   Node 版本不用手动配 —— 仓库里的 `.node-version` 会被读取。若构建日志里 Node 低于 22，再加一个 `NODE_VERSION=22`。
+   Node 版本不用手动配 —— 仓库里的 `.node-version`（24.11.0）会被读取。
 
 3. 保存后会自动跑第一次构建；之后每次推 `main` 都会重新发布。
 

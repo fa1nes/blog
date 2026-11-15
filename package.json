@@ -5,7 +5,7 @@
   "private": true,
   "description": "一个性能优先的现代静态个人博客",
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.23.4"
   },
   "scripts": {
     "dev": "astro dev",
