@@ -87,20 +87,14 @@ test('特殊字符、换行与 replacement 模板符号按原文写入配置', (
   assert.equal(values.author.bio, text);
 });
 
-test('后台配置同步站点入口与标题，保留集合定义', () => {
+test('后台配置只同步仓库，其余字段保持不变', () => {
   const first = updateAdminConfig(adminSource, answers);
   const next = { ...answers, title: '标题: # $& "内容"', url: 'https://next.example.org/notes/', githubUser: 'next-user' };
   const config = updateAdminConfig(first, next);
-  for (const [key, expected] of Object.entries({
-    site_url: 'https://next.example.org/notes',
-    display_url: 'https://next.example.org/notes',
-    app_title: `${next.title} · 内容工作台`,
-    repo: 'next-user/blog',
-  })) {
-    const match = config.match(new RegExp(`^\\s*${key}: (.*)$`, 'm'));
-    assert.equal(JSON.parse(match[1]), expected);
-  }
-  assert.equal(config.slice(config.indexOf('collections:')), adminSource.slice(adminSource.indexOf('collections:')));
+  const repo = config.match(/^\s*repo: (.*)$/m);
+  assert.equal(JSON.parse(repo[1]), 'next-user/blog');
+  // 后台不再依赖站点地址与标题，配置里其它行应原样保留
+  assert.equal(config.replace(/^\s*repo: .*$/m, ''), adminSource.replace(/^\s*repo: .*$/m, ''));
 });
 
 test('留空邮箱时移除旧社交地址，重新填写时恢复链接', () => {
@@ -132,7 +126,7 @@ test('无效站点地址、GitHub 仓库、年份在写入前拒绝', () => {
 
 test('配置结构缺失时抛错，避免静默漏改', () => {
   assert.throws(() => updateSiteConfig(source.replace('  title:', '  changedTitle:'), answers), /title/);
-  assert.throws(() => updateAdminConfig(adminSource.replace('site_url:', 'changed_site_url:'), answers), /site_url/);
+  assert.throws(() => updateAdminConfig(adminSource.replace(/^(\s*)repo:/m, '$1changedRepo:'), answers), /repo/);
 });
 
 test('明确清理会移除嵌套内容，但拒绝符号链接的集合目录', async (t) => {

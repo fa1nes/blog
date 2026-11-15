@@ -101,14 +101,24 @@ export function updateSiteConfig(source, answers) {
 }
 
 export function updateAdminConfig(source, answers) {
+  // 站点地址仍要校验，后台不再需要写进配置（页面自己知道部署在哪）
   const { siteUrl } = setupValues(answers);
   let config = source;
-  const values = { site_url: siteUrl, display_url: siteUrl, app_title: `${answers.title} · 内容工作台` };
-  if (answers.githubUser) values.repo = `${answers.githubUser}/${answers.repoName}`;
-  for (const [key, value] of Object.entries(values)) {
+
+  // 旧版配置里的这几个字段，存在就顺手更新，没有也不报错
+  const legacy = { site_url: siteUrl, display_url: siteUrl, app_title: `${answers.title} · 内容工作台` };
+  for (const [key, value] of Object.entries(legacy)) {
     const pattern = new RegExp(`^(\\s*${key}: ).*$`, 'gm');
-    if ([...config.matchAll(pattern)].length !== 1) throw new Error(`后台配置字段 ${key} 应恰好出现一次`);
-    config = config.replace(pattern, (_match, prefix) => `${prefix}${quote(value)}`);
+    if ([...config.matchAll(pattern)].length === 1) {
+      config = config.replace(pattern, (_match, prefix) => `${prefix}${quote(value)}`);
+    }
+  }
+
+  // 仓库是后台唯一的必填项
+  if (answers.githubUser) {
+    const pattern = /^(\s*repo: ).*$/gm;
+    if ([...config.matchAll(pattern)].length !== 1) throw new Error('后台配置字段 repo 应恰好出现一次');
+    config = config.replace(pattern, (_match, prefix) => `${prefix}${quote(`${answers.githubUser}/${answers.repoName}`)}`);
   }
   return config;
 }
