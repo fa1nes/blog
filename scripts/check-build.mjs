@@ -12,7 +12,7 @@ const required = [
   'index.html', '404.html', 'posts/index.html', 'notes/index.html',
   'tags/index.html', 'categories/index.html', 'archive/index.html',
   'friends/index.html', 'guestbook/index.html', 'about/index.html',
-  'search/index.html', 'admin/index.html', 'admin/config.yml',
+  'search/index.html', 'admin/index.html', 'admin/config.yml', 'admin/lite/index.html',
   'rss.xml', 'notes/rss.xml', 'robots.txt', 'pagefind/pagefind.js',
   'favicon.png', 'icon-64.png', 'avatar.png', 'brand-icon.png', 'apple-touch-icon.png',
   'site.webmanifest', 'icon-192.png', 'icon-512.png',
@@ -152,7 +152,9 @@ async function checkBuild() {
     const pageUrl = new URL(relativeUrl, siteRoot);
     const canonicals = nodes.filter((element) => hasRel(element, 'canonical'));
     const isBlogPage = required.includes(file) || nodes.some(({ tag, attrs }) => tag === 'meta' && attrs.name === 'generator' && /^Astro\b/.test(attrs.content ?? ''));
-    if (file !== 'admin/index.html' && (isBlogPage || canonicals.length)) {
+    // 后台页面（完整版与极简版）不是内容页，不参与 canonical / 作者 / 分享图校验
+    const isAdminPage = file.startsWith('admin/');
+    if (!isAdminPage && (isBlogPage || canonicals.length)) {
       if (canonicals.length !== 1) errors.push(`${file}：应有且只有一个 canonical`);
       else {
         try {

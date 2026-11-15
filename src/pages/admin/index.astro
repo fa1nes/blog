@@ -45,6 +45,12 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
         <details class="admin-help">
           <summary>登录与恢复</summary>
           <div class="admin-help-panel">
+            <strong>浏览器太老打不开？</strong>
+            <p class="admin-help-alt">
+              用 <a href={href('/admin/lite/')}>极简后台</a>：只有一个 Markdown 输入框，
+              iOS 12、Android 5、微信内置浏览器都能跑。
+            </p>
+
             <strong>最快的办法：不用令牌</strong>
             <p class="admin-help-alt">
               打开 <a href="https://github.dev/fa1nes/blog" target="_blank" rel="noopener noreferrer"
@@ -90,6 +96,23 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
         <p data-admin-message>加载文章、动态、友链与页面管理功能…</p>
         <button class="admin-retry" type="button" hidden>重新加载</button>
       </div>
+    </main>
+
+    <!-- 浏览器太老（iOS < 16.4）时的兜底：完整后台的脚本里有正则 lookbehind，
+         那是语法级特性，垫片解决不了，只能换一个极简编辑器。 -->
+    <main class="admin-legacy" id="legacy-fallback" hidden>
+      <h1>这台设备的浏览器版本偏老</h1>
+      <p>
+        完整后台用到了正则 lookbehind 等较新的语法，iOS / iPadOS 16.4（Safari 16.4）以下无法解析，
+        垫片也补不了。可以改用极简后台：只有一个输入框，改 Markdown 后保存，同样会提交到仓库并触发部署。
+      </p>
+      <p class="admin-legacy-actions">
+        <a class="admin-legacy-primary" href={href('/admin/lite/')}>进入极简后台</a>
+        <button class="admin-legacy-secondary" type="button" id="force-full">仍然试试完整后台</button>
+      </p>
+      <p class="admin-legacy-note">
+        极简后台需要粘贴一个 GitHub 令牌（只读改这一个仓库），首次填一次即可。也可以直接改仓库里的文件。
+      </p>
     </main>
     <div id="nc-root" hidden></div>
 
@@ -245,6 +268,39 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
       }
       .admin-fallback h1 { margin: 0; font-size: 1.4rem; }
       .admin-fallback p { line-height: 1.7; }
+
+      .admin-legacy {
+        box-sizing: border-box;
+        width: min(100% - 2rem, 34rem);
+        margin: 8vh auto 0;
+        padding: 1.75rem;
+        border: 1px solid #dde3ea;
+        border-radius: 1rem;
+        background: #fff;
+        line-height: 1.75;
+      }
+      .admin-legacy h1 { margin: 0 0 0.75rem; font-size: 1.35rem; }
+      .admin-legacy p { margin: 0 0 1rem; color: #4a5a66; }
+      .admin-legacy-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+      }
+      .admin-legacy-primary,
+      .admin-legacy-secondary {
+        display: inline-block;
+        padding: 0.7rem 1.2rem;
+        border: 0;
+        border-radius: 9999px;
+        font: inherit;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .admin-legacy-primary { background: #268358; color: #fff; }
+      .admin-legacy-secondary { background: #eef2f5; color: #35434f; }
+      .admin-legacy-note { margin: 1rem 0 0; font-size: 0.85rem; color: #6b7885; }
       @keyframes admin-spin { to { transform: rotate(360deg); } }
       @media (prefers-reduced-motion: reduce) {
         .admin-spinner { animation: none; }
@@ -583,8 +639,36 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
 
       retry?.addEventListener('click', () => window.location.reload());
 
+      // 完整后台的脚本里有正则 lookbehind（语法级特性），Safari 16.4 / iOS 16.4 以下
+      // 连解析都过不去，垫片救不了。检测不到就直接引到极简后台。
+      // 这里必须用运行时拼接：写成 new RegExp('(?<=a)b') 会被压缩器折叠成字面量，
+      // 字面量在解析期就编译完了，绕过检测。
+      const lookbehindProbe = ['(?<', '=a)b'].join('');
+      const supportsModernSyntax = (() => {
+        try {
+          new RegExp(lookbehindProbe);
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+
+      const legacyPanel = document.querySelector<HTMLElement>('#legacy-fallback');
+      const forceFull = new URLSearchParams(window.location.search).has('full');
+      const forceFullButton = document.querySelector<HTMLButtonElement>('#force-full');
+      forceFullButton?.addEventListener('click', () => {
+        window.location.search = '?full=1';
+      });
+
       const startCms = async () => {
         if (!root || !loading || !heading || !message || !spinner || !retry) return;
+
+        if (!supportsModernSyntax && !forceFull) {
+          // 老浏览器：直接给极简后台，别让用户对着「初始化失败」发呆
+          loading.hidden = true;
+          if (legacyPanel) legacyPanel.hidden = false;
+          return;
+        }
 
         // CDN 脚本默认自动初始化；手动挂载才能等待失败并传入本次构建的站点地址。
         cmsWindow.CMS_MANUAL_INIT = true;
@@ -622,7 +706,7 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
           const detail = error instanceof Error && error.message ? `：${error.message}` : '';
           message.textContent = stage === 'load'
             ? `后台资源未能加载${detail}。可能是网络连接或资源校验失败，请检查网络后重新加载，也可从右上角查看登录与恢复说明。`
-            : `后台初始化失败${detail}。请重新加载；若仍停在同样位置，可换用桌面版 Chrome / Edge 打开，或直接编辑仓库里的 Markdown。`;
+            : `后台初始化失败${detail}。可以重新加载；若反复停在这里，改用极简后台（/admin/lite/），或直接编辑仓库里的 Markdown。`;
           loading.setAttribute('role', 'alert');
           retry.hidden = false;
           // CMS.init 每页只执行一次，重试必须重载页面，不能再次调用 init。

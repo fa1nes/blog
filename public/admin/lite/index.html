@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#268358" />
+    <title>极简后台 · fa1nes 的博客</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #f6f8f7;
+        color: #2c3a35;
+        font: 16px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      header {
+        display: block;
+        padding: 12px 16px;
+        background: #fff;
+        border-bottom: 1px solid #dfe6e2;
+      }
+      header strong { font-size: 15px; }
+      header .muted { color: #6b7a72; font-size: 13px; }
+      main { padding: 16px; max-width: 880px; margin: 0 auto; }
+      h1 { font-size: 20px; margin: 4px 0 12px; }
+      h2 { font-size: 16px; margin: 24px 0 8px; }
+      p.hint { color: #5d6b64; font-size: 14px; margin: 0 0 12px; }
+      a { color: #1e7049; }
+      label { display: block; font-size: 13px; color: #5d6b64; margin: 10px 0 4px; }
+      input[type="text"], input[type="password"], textarea, select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #cfd9d3;
+        border-radius: 8px;
+        background: #fff;
+        color: inherit;
+        font: inherit;
+        -webkit-appearance: none;
+      }
+      textarea { min-height: 320px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; line-height: 1.6; }
+      button {
+        margin: 14px 0 0;
+        padding: 10px 18px;
+        border: 0;
+        border-radius: 999px;
+        background: #268358;
+        color: #fff;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button.secondary { background: #eafaf2; color: #1e7049; }
+      button:disabled { opacity: .55; }
+      .row { margin: 0 0 6px; }
+      .grid { display: block; }
+      .grid > div { margin-bottom: 8px; }
+      .card { background: #fff; border: 1px solid #dfe6e2; border-radius: 12px; padding: 16px; margin: 0 0 16px; }
+      .post-item {
+        display: block;
+        padding: 12px 4px;
+        border-bottom: 1px solid #eef2f0;
+        text-decoration: none;
+        color: inherit;
+      }
+      .post-item:last-child { border-bottom: 0; }
+      .post-item b { font-weight: 600; }
+      .post-item span { display: block; color: #7a877f; font-size: 13px; }
+      .status { font-size: 14px; padding: 10px 12px; border-radius: 8px; margin: 12px 0; display: none; }
+      .status.show { display: block; }
+      .status.ok { background: #eafaf2; color: #1c6b46; }
+      .status.err { background: #fdeceb; color: #a1332b; }
+      .hidden { display: none !important; }
+      .toolbar { margin: 0 0 12px; }
+      .toolbar button { margin: 0 8px 8px 0; }
+      footer { padding: 24px 16px 40px; text-align: center; color: #86948c; font-size: 13px; }
+      @media (min-width: 720px) {
+        .grid { display: flex; }
+        .grid > div { flex: 1; margin: 0 8px 0 0; }
+        .grid > div:last-child { margin-right: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>极简后台</strong>
+      <span class="muted">· 老系统 / 老浏览器专用</span>
+    </header>
+
+    <main>
+      <h1>改文章</h1>
+      <p class="hint">
+        这个页面只用最基础的技术，iOS 12、Android 5、微信内置浏览器都能开。
+        完整的可视化后台在 <a id="fullAdmin" href="../">/admin/</a>。
+      </p>
+
+      <div id="status" class="status"></div>
+
+      <!-- 登录 -->
+      <div id="loginView" class="card">
+        <h2 style="margin-top:0">先填一个 GitHub 令牌</h2>
+        <p class="hint">
+          令牌只要 <b>Contents: Read and write</b> 权限，范围选 <b>fa1nes/blog-content</b> 这一个仓库。
+          生成地址：<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">fine-grained PAT</a>。
+          令牌只存在这台设备的浏览器里，不会上传。
+        </p>
+        <label for="token">GitHub 令牌</label>
+        <input id="token" type="password" autocomplete="off" placeholder="github_pat_..." />
+        <button id="loginBtn" type="button">进入</button>
+        <button id="forgetBtn" class="secondary hidden" type="button">清除本机令牌</button>
+      </div>
+
+      <!-- 列表 -->
+      <div id="listView" class="card hidden">
+        <div class="toolbar">
+          <button id="newBtn" type="button">写新文章</button>
+          <button id="reloadBtn" class="secondary" type="button">刷新列表</button>
+          <button id="logoutBtn" class="secondary" type="button">退出</button>
+        </div>
+        <div id="postList"></div>
+      </div>
+
+      <!-- 编辑 -->
+      <div id="editView" class="hidden">
+        <div class="card">
+          <h2 style="margin-top:0" id="editTitle">编辑文章</h2>
+          <div class="grid">
+            <div>
+              <label for="fTitle">标题</label>
+              <input id="fTitle" type="text" />
+            </div>
+            <div>
+              <label for="fSlug">网址别名（编号，如 7）</label>
+              <input id="fSlug" type="text" />
+            </div>
+          </div>
+          <div class="grid">
+            <div>
+              <label for="fDate">发布日期</label>
+              <input id="fDate" type="text" placeholder="2026-11-15" />
+            </div>
+            <div>
+              <label for="fCategory">分类</label>
+              <input id="fCategory" type="text" />
+            </div>
+          </div>
+          <div class="grid">
+            <div>
+              <label for="fTags">标签（逗号分隔）</label>
+              <input id="fTags" type="text" />
+            </div>
+            <div>
+              <label for="fDraft">状态</label>
+              <select id="fDraft">
+                <option value="false">已发布</option>
+                <option value="true">草稿</option>
+              </select>
+            </div>
+          </div>
+          <label for="fBody">正文（Markdown）</label>
+          <textarea id="fBody"></textarea>
+          <button id="saveBtn" type="button">保存并发布</button>
+          <button id="cancelBtn" class="secondary" type="button">返回列表</button>
+        </div>
+      </div>
+    </main>
+
+    <footer>保存后会自动提交到内容仓库，两个站点会在两分钟内重新构建。</footer>
+
+    <script>
+      /* 全部 ES5 + XMLHttpRequest：不依赖 fetch / Promise / let / 箭头函数 */
+      (function () {
+        var OWNER = 'fa1nes';
+        var REPO = 'fa1nes/blog-content';
+        var BRANCH = 'main';
+        var POSTS_DIR = 'src/content/posts';
+        var TOKEN_KEY = 'lite-cms-token';
+
+        var $ = function (id) { return document.getElementById(id); };
+        var view = { login: $('loginView'), list: $('listView'), edit: $('editView') };
+        var current = null; /* { path, sha, isNew } */
+
+        function show(name) {
+          view.login.className = name === 'login' ? 'card' : 'card hidden';
+          view.list.className = name === 'list' ? 'card' : 'card hidden';
+          view.edit.className = name === 'edit' ? '' : 'hidden';
+          window.scrollTo(0, 0);
+        }
+
+        function say(kind, text) {
+          var el = $('status');
+          el.className = 'status show ' + kind;
+          el.innerHTML = text;
+        }
+
+        function clearSay() {
+          $('status').className = 'status';
+        }
+
+        /* ---------- base64（UTF-8 安全） ---------- */
+        function encodeBase64(text) {
+          return window.btoa(unescape(encodeURIComponent(text)));
+        }
+        function decodeBase64(text) {
+          return decodeURIComponent(escape(window.atob(text.replace(/\s/g, ''))));
+        }
+
+        /* ---------- GitHub API ---------- */
+        function api(method, path, body, done) {
+          var xhr = new XMLHttpRequest();
+          xhr.open(method, 'https://api.github.com' + path, true);
+          xhr.setRequestHeader('Accept', 'application/vnd.github+json');
+          xhr.setRequestHeader('Authorization', 'Bearer ' + localStorage.getItem(TOKEN_KEY));
+          if (body) xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState !== 4) return;
+            var data = null;
+            try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+            if (xhr.status >= 200 && xhr.status < 300) return done(null, data);
+            var message = (data && data.message) || ('HTTP ' + xhr.status);
+            if (xhr.status === 401) message = '令牌无效或已过期，请重新填写。';
+            if (xhr.status === 403) message = '令牌没有这个仓库的写入权限，请检查 Contents 权限。';
+            if (xhr.status === 404) message = '找不到仓库或文件，请确认令牌授权了 ' + REPO + '。';
+            done(new Error(message), data);
+          };
+          xhr.send(body ? JSON.stringify(body) : null);
+        }
+
+        /* ---------- frontmatter ---------- */
+        var ORDER = ['title', 'description', 'pubDate', 'category', 'tags', 'slug', 'draft', 'pinned'];
+
+        function parsePost(text) {
+          var out = { fields: {}, body: text, order: [] };
+          if (text.indexOf('---') !== 0) return out;
+          var end = text.indexOf('\n---', 3);
+          if (end === -1) return out;
+          var head = text.slice(3, end).replace(/^\s*\n/, '');
+          out.body = text.slice(end + 4).replace(/^\s*\n/, '');
+          var lines = head.split('\n');
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            var m = line.match(/^([A-Za-z_][\w-]*):\s*(.*)$/);
+            if (!m) continue;
+            var key = m[1];
+            var value = m[2].replace(/\s+$/, '');
+            if (value === '') {
+              /* 多行值先略过，原样保留 */
+              out.fields[key] = '';
+              out.order.push(key);
+              continue;
+            }
+            out.fields[key] = value.replace(/^["']|["']$/g, '');
+            out.order.push(key);
+          }
+          return out;
+        }
+
+        function buildPost(fields, body) {
+          var keys = [];
+          var i;
+          for (i = 0; i < ORDER.length; i++) if (fields.hasOwnProperty(ORDER[i])) keys.push(ORDER[i]);
+          for (i = 0; i < fields._order.length; i++) {
+            var key = fields._order[i];
+            if (ORDER.indexOf(key) === -1 && fields.hasOwnProperty(key)) keys.push(key);
+          }
+          var lines = ['---'];
+          for (i = 0; i < keys.length; i++) {
+            var k = keys[i];
+            var v = fields[k];
+            if (k === 'tags') {
+              lines.push('tags: [' + v + ']');
+            } else if (k === 'slug' || k === 'title') {
+              lines.push(k + ': "' + String(v).replace(/"/g, '\\"') + '"');
+            } else {
+              lines.push(k + ': ' + v);
+            }
+          }
+          lines.push('---');
+          return lines.join('\n') + '\n\n' + body.replace(/^\n+/, '');
+        }
+
+        /* ---------- 列表 ---------- */
+        function loadList() {
+          clearSay();
+          $('postList').innerHTML = '<p class="hint">正在读取列表…</p>';
+          show('list');
+          api('GET', '/repos/' + REPO + '/contents/' + POSTS_DIR + '?ref=' + BRANCH, null, function (err, files) {
+            if (err) { say('err', err.message); $('postList').innerHTML = ''; return; }
+            var list = [];
+            for (var i = 0; i < files.length; i++) {
+              if (/\.mdx?$/i.test(files[i].name)) list.push(files[i]);
+            }
+            list.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+            var html = '';
+            for (var j = 0; j < list.length; j++) {
+              var f = list[j];
+              html += '<a class="post-item" href="#" data-path="' + f.path + '"><b>' + f.name +
+                '</b><span>' + (f.size / 1024).toFixed(1) + ' KB</span></a>';
+            }
+            $('postList').innerHTML = html || '<p class="hint">还没有文章。</p>';
+          });
+        }
+
+        function openFile(path) {
+          clearSay();
+          api('GET', '/repos/' + REPO + '/contents/' + path + '?ref=' + BRANCH, null, function (err, file) {
+            if (err) { say('err', err.message); return; }
+            var text = decodeBase64(file.content);
+            var parsed = parsePost(text);
+            var f = parsed.fields;
+            f._order = parsed.order;
+            current = { path: path, sha: file.sha, isNew: false, fields: f };
+            $('editTitle').innerHTML = '编辑：' + path.replace(POSTS_DIR + '/', '');
+            $('fTitle').value = f.title || '';
+            $('fSlug').value = f.slug || '';
+            $('fDate').value = f.pubDate || '';
+            $('fCategory').value = f.category || '';
+            $('fTags').value = (f.tags || '').replace(/^\[|\]$/g, '');
+            $('fDraft').value = String(f.draft || 'false').indexOf('true') === 0 ? 'true' : 'false';
+            $('fBody').value = parsed.body;
+            show('edit');
+          });
+        }
+
+        function collect() {
+          var fields = current.fields;
+          fields.title = $('fTitle').value;
+          fields.slug = $('fSlug').value;
+          fields.pubDate = $('fDate').value;
+          fields.category = $('fCategory').value;
+          fields.tags = $('fTags').value;
+          if ($('fDraft').value === 'true') fields.draft = 'true'; else delete fields.draft;
+          fields._order = fields._order || [];
+          return buildPost(fields, $('fBody').value);
+        }
+
+        function save() {
+          var text = collect();
+          var payload = {
+            message: '后台：更新 ' + current.path,
+            content: encodeBase64(text),
+            branch: BRANCH
+          };
+          if (current.sha) payload.sha = current.sha;
+          $('saveBtn').disabled = true;
+          api('PUT', '/repos/' + REPO + '/contents/' + current.path, payload, function (err, data) {
+            $('saveBtn').disabled = false;
+            if (err) { say('err', '保存失败：' + err.message); return; }
+            current.sha = data.content && data.content.sha;
+            say('ok', '已保存并提交。两个站点大约两分钟后更新。');
+          });
+        }
+
+        /* ---------- 事件 ---------- */
+        $('loginBtn').onclick = function () {
+          var token = $('token').value.replace(/\s/g, '');
+          if (!token) { say('err', '先填令牌。'); return; }
+          localStorage.setItem(TOKEN_KEY, token);
+          api('GET', '/user', null, function (err, user) {
+            if (err) { localStorage.removeItem(TOKEN_KEY); say('err', err.message); return; }
+            say('ok', '已以 ' + user.login + ' 身份登录。');
+            $('token').value = '';
+            $('forgetBtn').className = 'secondary';
+            loadList();
+          });
+        };
+
+        $('forgetBtn').onclick = function () {
+          localStorage.removeItem(TOKEN_KEY);
+          location.reload();
+        };
+
+        $('logoutBtn').onclick = function () {
+          localStorage.removeItem(TOKEN_KEY);
+          location.reload();
+        };
+
+        $('reloadBtn').onclick = loadList;
+        $('cancelBtn').onclick = function () { current = null; loadList(); };
+        $('saveBtn').onclick = save;
+
+        $('newBtn').onclick = function () {
+          var today = new Date();
+          var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+          var date = today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
+          current = { path: '', sha: '', isNew: true, fields: { _order: [] } };
+          $('editTitle').innerHTML = '写新文章';
+          $('fTitle').value = '';
+          $('fSlug').value = '';
+          $('fDate').value = date;
+          $('fCategory').value = '随笔';
+          $('fTags').value = '';
+          $('fDraft').value = 'true';
+          $('fBody').value = '';
+          show('edit');
+        };
+
+        /* 保存新文章时按 slug 决定文件名 */
+        var originalSave = save;
+        save = function () {
+          if (current.isNew) {
+            var slug = $('fSlug').value || 'post-' + Date.now();
+            current.path = POSTS_DIR + '/' + slug + '.md';
+            current.sha = '';
+          }
+          originalSave();
+        };
+        $('saveBtn').onclick = save;
+
+        $('postList').onclick = function (event) {
+          var node = event.target;
+          while (node && node !== this && node.tagName !== 'A') node = node.parentNode;
+          if (!node || node === this) return;
+          event.preventDefault();
+          openFile(node.getAttribute('data-path'));
+        };
+
+        /* ---------- 启动 ---------- */
+        var saved = localStorage.getItem(TOKEN_KEY);
+        if (saved) {
+          $('forgetBtn').className = 'secondary';
+          loadList();
+        } else {
+          show('login');
+        }
+      })();
+    </script>
+  </body>
+</html>
