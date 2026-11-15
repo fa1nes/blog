@@ -634,12 +634,12 @@ const cmsScriptUrl = href('/admin/vendor/sveltia-cms.js');
       const spinner = document.querySelector<HTMLElement>('.admin-spinner');
       const retry = document.querySelector<HTMLButtonElement>('.admin-retry');
 
-      const withTimeout = async (operation: Promise<void>) => {
+      const withTimeout = async <T,>(operation: Promise<T>): Promise<T> => {
         let timer: number | undefined;
         try {
-          await Promise.race([
+          return await Promise.race<T>([
             operation,
-            new Promise<never>((_resolve, reject) => {
+            new Promise<T>((_resolve, reject) => {
               timer = window.setTimeout(() => reject(new Error('CMS startup timeout')), 30_000);
             }),
           ]);
